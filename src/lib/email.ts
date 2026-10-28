@@ -30,13 +30,14 @@ async function sendEmail(input: {
 
 function approveUrl(paymentId: string): string {
   const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  return `${site.replace(/\/$/, "")}/abonos#pago-${paymentId}`;
+  return `${site.replace(/\/$/, "")}/payments#pago-${paymentId}`;
 }
 
 const buttonStyle =
   "display:inline-block;margin-top:12px;padding:10px 18px;border-radius:8px;background:#0f766e;color:#ffffff;text-decoration:none;font-weight:600;";
 
 export type ReceiptEmailInput = {
+  to: string[];
   paymentId: string;
   debtName: string;
   amountCop: number;
@@ -48,13 +49,9 @@ export type ReceiptEmailInput = {
   attachment: { filename: string; content: string; contentType: string };
 };
 
-/** Envía el correo con el recibo adjunto a NOTIFY_EMAILS. Lanza si falta configuración o si Gmail rechaza el envío. */
+/** Envía el correo con el recibo adjunto a los destinatarios configurados en la deuda. Lanza si Gmail rechaza el envío. */
 export async function sendReceiptEmail(input: ReceiptEmailInput): Promise<void> {
-  const to = (process.env.NOTIFY_EMAILS ?? "")
-    .split(",")
-    .map((s) => s.trim())
-    .filter(Boolean);
-  if (to.length === 0) throw new Error("Falta configurar NOTIFY_EMAILS");
+  const { to } = input;
 
   const html = `
     <div style="font-family: sans-serif; font-size: 15px; color: #111;">

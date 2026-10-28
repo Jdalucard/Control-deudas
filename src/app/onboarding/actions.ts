@@ -10,7 +10,7 @@ export async function createHousehold(formData: FormData) {
   const supabase = await createClient();
   const { error } = await supabase.rpc("create_household", { p_name: name });
   if (error) redirect(`/onboarding?m=${error.message.includes("Ya perteneces") ? "ya_hogar" : "generico"}`);
-  redirect("/ajustes");
+  redirect("/");
 }
 
 export async function joinHousehold(formData: FormData) {

@@ -83,7 +83,7 @@ export const getDebtBalances = cache(async (): Promise<DebtBalance[]> => {
   const supabase = await createClient();
   const { data } = await supabase
     .from("debt_balances")
-    .select("debt_id, name, creditor, currency, initial_amount, paid_amount, balance, payments_count")
+    .select("debt_id, name, creditor, currency, initial_amount, paid_amount, balance, payments_count, notify_emails")
     .eq("archived", false)
     .order("created_at");
   return (data ?? []).map((d) => ({

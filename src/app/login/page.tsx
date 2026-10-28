@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getUser } from "@/lib/data";
-import { Flash } from "@/lib/messages";
+import { Flash } from "@/lib/flash-toast";
 import { signIn, signUp } from "./actions";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
@@ -11,7 +11,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
       <div>
         <h1 className="text-2xl font-semibold">Control de Deuda y Gastos</h1>
-        <p className="mt-1 text-sm text-muted">Entra para ver tu deuda total y registrar abonos.</p>
+        <p className="mt-1 text-sm text-muted-foreground">Entra para ver tu deuda total y registrar abonos.</p>
       </div>
       <form className="card flex flex-col gap-4">
         <Flash code={m} />
@@ -28,7 +28,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <button formAction={signUp} className="btn-ghost flex-1">Crear cuenta</button>
         </div>
       </form>
-      <Link href="/login/recuperar" className="text-center text-sm text-muted hover:underline">
+      <Link href="/login/forgot-password" className="text-center text-sm text-muted-foreground hover:underline">
         ¿Olvidaste tu contraseña?
       </Link>
     </main>

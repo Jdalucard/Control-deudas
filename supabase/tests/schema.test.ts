@@ -50,6 +50,7 @@ describe("esquema de deudas", () => {
     // 0002 crea un bucket de Storage; esta base de pruebas no emula ese esquema, así que se omite.
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0003_payment_approval.sql"), "utf8"));
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0004_money.sql"), "utf8"));
+    await db.exec(readFileSync(path.join(__dirname, "../migrations/0005_debt_notify_emails.sql"), "utf8"));
   });
 
   it("A crea un hogar y B no lo ve", async () => {
@@ -186,5 +187,20 @@ describe("esquema de deudas", () => {
     await expect(
       as(B, () => rows("insert into public.money_movements (user_id, account_id, kind, amount) values ($1,$2,'gasto',1)", [B, accountA])),
     ).rejects.toThrow();
+  });
+
+  it("notify_emails es nulo por defecto y queda expuesto en debt_balances", async () => {
+    const before = (await as(A, () => rows("select notify_emails from public.debt_balances where debt_id=$1", [debtCop])))[0];
+    expect(before.notify_emails).toBeNull();
+
+    await as(A, () =>
+      rows("update public.debts set notify_emails=$1 where id=$2", ["hermana@test.co, pedro@test.co", debtCop]),
+    );
+    const after = (await as(A, () => rows("select notify_emails from public.debt_balances where debt_id=$1", [debtCop])))[0];
+    expect(after.notify_emails).toBe("hermana@test.co, pedro@test.co");
+
+    // La deuda en USD no se tocó: sigue sin destinatarios configurados.
+    const other = (await as(A, () => rows("select notify_emails from public.debt_balances where debt_id=$1", [debtUsd])))[0];
+    expect(other.notify_emails).toBeNull();
   });
 });

@@ -16,3 +16,11 @@ export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 
 
 export const pctEs = (fraction: number) =>
   `${(fraction * 100).toLocaleString("es-CO", { maximumFractionDigits: 1, minimumFractionDigits: 1 })}%`;
+
+/** "a@x.com, b@x.com" → ["a@x.com", "b@x.com"]; descarta vacíos. */
+export function parseEmailList(raw: string): string[] {
+  return raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}

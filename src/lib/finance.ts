@@ -9,6 +9,7 @@ export type DebtBalance = {
   paid_amount: number;
   balance: number;
   payments_count: number;
+  notify_emails: string | null;
 };
 
 const round = (n: number, d: number) => {
@@ -68,6 +69,13 @@ export function previewPayment(
     totalBefore: totalDebtCop(debts, trm),
     totalAfter: totalDebtCop(after, trm),
   };
+}
+
+/** ¿La deuda coincide con lo buscado (nombre o a quién se le debe)? */
+export function matchesDebtQuery(debt: Pick<DebtBalance, "name" | "creditor">, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return debt.name.toLowerCase().includes(q) || (debt.creditor?.toLowerCase().includes(q) ?? false);
 }
 
 /** Parsea montos escritos por una persona: "1.500.000", "1,500,000", "3131,86", "3131.86". */

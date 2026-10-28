@@ -1,7 +1,7 @@
 import { getMoneyAccounts, getMoneyMovements, requireUser } from "@/lib/data";
 import { fmtMoney, type Currency } from "@/lib/finance";
 import { dateEs, todayBogota } from "@/lib/format";
-import { Flash } from "@/lib/messages";
+import { Flash } from "@/lib/flash-toast";
 import { addAccount, addMovement, archiveAccount, deleteMovement, updateAccount } from "./actions";
 
 export default async function MoneyPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
@@ -18,14 +18,14 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
     <>
       <div>
         <h1 className="text-xl font-semibold">Gastos e ingresos</h1>
-        <p className="text-sm text-muted">Privado: solo tú ves esta información, aunque compartas hogar con alguien más.</p>
+        <p className="text-sm text-muted-foreground">Privado: solo tú ves esta información, aunque compartas hogar con alguien más.</p>
       </div>
       <Flash code={m} />
 
       <section className="card flex flex-col gap-2">
         <h2 className="font-medium">Tu saldo</h2>
         {Object.keys(totalsByCurrency).length === 0 ? (
-          <p className="text-sm text-muted">Aún no tienes cuentas.</p>
+          <p className="text-sm text-muted-foreground">Aún no tienes cuentas.</p>
         ) : (
           <p className="text-2xl font-semibold tracking-tight">
             {Object.entries(totalsByCurrency)
@@ -37,7 +37,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
 
       <section className="card flex flex-col gap-4">
         <h2 className="font-medium">Dónde tienes el dinero</h2>
-        {accounts.length === 0 && <p className="text-sm text-muted">Agrega una cuenta (efectivo, banco, billetera digital...).</p>}
+        {accounts.length === 0 && <p className="text-sm text-muted-foreground">Agrega una cuenta (efectivo, banco, billetera digital...).</p>}
         {accounts.map((a) => (
           <div key={a.account_id} className="flex flex-col gap-2 border-t border-border pt-4 first:border-t-0 first:pt-0">
             <form action={updateAccount} className="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
@@ -52,7 +52,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
               </div>
               <button className="btn-ghost">Guardar</button>
             </form>
-            <div className="flex items-center justify-between text-xs text-muted">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Saldo actual: {fmtMoney(a.balance, a.currency)}</span>
               <form action={archiveAccount}>
                 <input type="hidden" name="id" value={a.account_id} />
@@ -119,17 +119,17 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
           <input id="note" name="note" maxLength={300} className="input" />
         </div>
         <button className="btn w-fit" disabled={accounts.length === 0}>Guardar</button>
-        {accounts.length === 0 && <p className="text-xs text-muted sm:col-span-2">Primero agrega una cuenta.</p>}
+        {accounts.length === 0 && <p className="text-xs text-muted-foreground sm:col-span-2">Primero agrega una cuenta.</p>}
       </form>
 
       <section className="card overflow-x-auto p-0">
         <h2 className="px-4 pt-4 font-medium">Movimientos recientes</h2>
         {movements.length === 0 ? (
-          <p className="px-4 pb-4 pt-2 text-sm text-muted">Aún no hay movimientos.</p>
+          <p className="px-4 pb-4 pt-2 text-sm text-muted-foreground">Aún no hay movimientos.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-xs text-muted">
+              <tr className="text-left text-xs text-muted-foreground">
                 <th className="px-4 py-2 font-medium">Fecha</th>
                 <th className="px-2 py-2 font-medium">Cuenta</th>
                 <th className="px-2 py-2 font-medium">Tipo</th>
@@ -147,7 +147,7 @@ export default async function MoneyPage({ searchParams }: { searchParams: Promis
                   <td className="whitespace-nowrap px-2 py-2 text-right">
                     {mv.money_accounts ? fmtMoney(mv.amount, mv.money_accounts.currency) : mv.amount}
                   </td>
-                  <td className="max-w-48 truncate px-2 py-2 text-muted">{[mv.category, mv.note].filter(Boolean).join(" · ") || "—"}</td>
+                  <td className="max-w-48 truncate px-2 py-2 text-muted-foreground">{[mv.category, mv.note].filter(Boolean).join(" · ") || "—"}</td>
                   <td className="px-4 py-2 text-right">
                     <form action={deleteMovement}>
                       <input type="hidden" name="id" value={mv.id} />
