@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appliedAmount, breakdown, parseAmount, previewPayment, totalDebtCop, toCop } from "./finance";
+import { appliedAmount, breakdown, matchesDebtQuery, parseAmount, previewPayment, totalDebtCop, toCop } from "@/lib/finance";
 
 const debts = [
   { debt_id: "a", currency: "COP" as const, balance: 18_050_000 },
@@ -64,5 +64,15 @@ describe("finanzas", () => {
     expect(parseAmount("0.5")).toBe(0.5);
     expect(parseAmount("")).toBeNull();
     expect(parseAmount("abc")).toBeNull();
+  });
+
+  it("filtra deudas por nombre o a quién se debe", () => {
+    const debt = { name: "Préstamo carro", creditor: "Banco X" };
+    expect(matchesDebtQuery(debt, "")).toBe(true);
+    expect(matchesDebtQuery(debt, "carro")).toBe(true);
+    expect(matchesDebtQuery(debt, "CARRO")).toBe(true);
+    expect(matchesDebtQuery(debt, "banco x")).toBe(true);
+    expect(matchesDebtQuery(debt, "nada")).toBe(false);
+    expect(matchesDebtQuery({ name: "Deuda", creditor: null }, "x")).toBe(false);
   });
 });

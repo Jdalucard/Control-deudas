@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { fetchTrm, parseMarket, parseOfficial } from "./trm";
+import { fetchTrm, parseMarket, parseOfficial } from "@/lib/trm";
 
 const market = { result: "success", time_last_update_unix: 1793059201, rates: { COP: 3131.86, EUR: 0.86 } };
 const official = [{ valor: "3120.45", unidad: "COP", vigenciadesde: "2026-10-27T00:00:00.000" }];

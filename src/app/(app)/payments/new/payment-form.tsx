@@ -86,7 +86,7 @@ export function PaymentForm({
               <input id="trm" name="trm" value={trm} onChange={(e) => setTrm(e.target.value)} inputMode="decimal" placeholder="3131,86" required className="input" />
               <button type="button" onClick={fetchTrm} className="btn-ghost whitespace-nowrap">Traer hoy</button>
             </div>
-            {trmMsg && <p className="mt-1 text-xs text-muted">{trmMsg}</p>}
+            {trmMsg && <p className="mt-1 text-xs text-muted-foreground">{trmMsg}</p>}
           </div>
         ) : (
           <div className="hidden sm:block" />
@@ -100,7 +100,7 @@ export function PaymentForm({
       <div>
         <label className="label" htmlFor="receipt">Recibo de pago (foto o PDF, opcional)</label>
         <input id="receipt" name="receipt" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="input" />
-        <p className="mt-1 text-xs text-muted">Si lo subes, se envía por correo con el monto abonado y la deuda total restante.</p>
+        <p className="mt-1 text-xs text-muted-foreground">Si lo subes, se envía por correo con el monto abonado y la deuda total restante.</p>
       </div>
 
       {preview && (

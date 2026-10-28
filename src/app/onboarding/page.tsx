@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getHousehold, requireUser } from "@/lib/data";
-import { Flash } from "@/lib/messages";
+import { Flash } from "@/lib/flash-toast";
 import { createHousehold, joinHousehold } from "./actions";
 
 export default async function OnboardingPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
@@ -11,7 +11,7 @@ export default async function OnboardingPage({ searchParams }: { searchParams: P
     <main className="mx-auto flex w-full max-w-xl flex-1 flex-col justify-center gap-6 px-4 py-12">
       <div>
         <h1 className="text-2xl font-semibold">Configura tu hogar</h1>
-        <p className="mt-1 text-sm text-muted">
+        <p className="mt-1 text-sm text-muted-foreground">
           El hogar es el espacio compartido donde viven las deudas y los abonos. Dos personas pueden verlo y editarlo.
         </p>
       </div>

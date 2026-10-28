@@ -29,16 +29,3 @@ const MESSAGES: Record<string, { kind: "error" | "ok"; text: string }> = {
 export function flash(code: string | undefined) {
   return code ? (MESSAGES[code] ?? null) : null;
 }
-
-export function Flash({ code }: { code: string | undefined }) {
-  const m = flash(code);
-  if (!m) return null;
-  return (
-    <p
-      role={m.kind === "error" ? "alert" : "status"}
-      className={`rounded-lg px-3 py-2 text-sm ${m.kind === "error" ? "bg-[var(--warn-bg)] text-danger" : "bg-[var(--ok-bg)]"}`}
-    >
-      {m.text}
-    </p>
-  );
-}

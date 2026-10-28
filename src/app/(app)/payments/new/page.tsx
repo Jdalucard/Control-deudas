@@ -12,8 +12,8 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: P
   if (debts.length === 0) {
     return (
       <section className="card flex flex-col items-start gap-3">
-        <p className="text-sm text-muted">Primero agrega una deuda.</p>
-        <Link href="/ajustes" className="btn">Ir a Ajustes</Link>
+        <p className="text-sm text-muted-foreground">Primero agrega una deuda.</p>
+        <Link href="/" className="btn">Ir a Resumen</Link>
       </section>
     );
   }
@@ -25,7 +25,7 @@ export default async function NewPaymentPage({ searchParams }: { searchParams: P
     <>
       <div>
         <h1 className="text-xl font-semibold">Registrar abono</h1>
-        <p className="text-sm text-muted">
+        <p className="text-sm text-muted-foreground">
           Escribe lo que pagaste en pesos. En deudas en USD, la app guarda la TRM de ese día y calcula cuántos dólares descuenta.
         </p>
       </div>
