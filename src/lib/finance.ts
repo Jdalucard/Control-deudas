@@ -10,6 +10,8 @@ export type DebtBalance = {
   balance: number;
   payments_count: number;
   notify_emails: string | null;
+  archived: boolean;
+  created_at: string;
 };
 
 const round = (n: number, d: number) => {

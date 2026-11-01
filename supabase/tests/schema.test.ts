@@ -51,6 +51,10 @@ describe("esquema de deudas", () => {
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0003_payment_approval.sql"), "utf8"));
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0004_money.sql"), "utf8"));
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0005_debt_notify_emails.sql"), "utf8"));
+    await db.exec(readFileSync(path.join(__dirname, "../migrations/0006_dropship.sql"), "utf8"));
+    // 0007 también crea un bucket de Storage (foto del producto); se omite por la misma razón que 0002.
+    await db.exec(readFileSync(path.join(__dirname, "../migrations/0008_dropship_ad_spend_hook.sql"), "utf8"));
+    await db.exec(readFileSync(path.join(__dirname, "../migrations/0009_dropship_product_delete.sql"), "utf8"));
   });
 
   it("A crea un hogar y B no lo ve", async () => {
@@ -202,5 +206,42 @@ describe("esquema de deudas", () => {
     // La deuda en USD no se tocó: sigue sin destinatarios configurados.
     const other = (await as(A, () => rows("select notify_emails from public.debt_balances where debt_id=$1", [debtUsd])))[0];
     expect(other.notify_emails).toBeNull();
+  });
+
+  it("A crea un producto de dropshipping con su pauta y pedidos; B no los ve aunque comparta hogar", async () => {
+    const [prod] = await as(A, () =>
+      rows(
+        "insert into public.dropship_products (user_id, name, cost_cop, price_cop) values ($1,'Organizador',22000,79900) returning id",
+        [A],
+      ),
+    );
+    const productA = prod.id as string;
+
+    await as(A, () =>
+      rows("insert into public.dropship_ad_spend (user_id, product_id, amount_cop, orders_created) values ($1,$2,180000,10)", [A, productA]),
+    );
+    await as(A, () =>
+      rows(
+        "insert into public.dropship_order_batches (user_id, product_id, period_start, period_end, orders_created, orders_delivered, orders_returned) values ($1,$2,'2026-01-01','2026-01-03',10,7,3)",
+        [A, productA],
+      ),
+    );
+    const totals = (await as(A, () => rows("select * from public.dropship_product_totals where product_id=$1", [productA])))[0];
+    expect(Number(totals.total_spent)).toBe(180000);
+    expect(Number(totals.total_orders_logged)).toBe(10);
+    expect(Number(totals.total_delivered)).toBe(7);
+
+    expect(await as(B, () => rows("select * from public.dropship_products"))).toHaveLength(0);
+    expect(await as(B, () => rows("select * from public.dropship_ad_spend"))).toHaveLength(0);
+    expect(await as(B, () => rows("select * from public.dropship_product_totals"))).toHaveLength(0);
+  });
+
+  it("B no puede insertar gasto de pauta contra el producto de A", async () => {
+    const [prod] = await as(A, () =>
+      rows("insert into public.dropship_products (user_id, name, cost_cop, price_cop) values ($1,'Otro',10000,40000) returning id", [A]),
+    );
+    await expect(
+      as(B, () => rows("insert into public.dropship_ad_spend (user_id, product_id, amount_cop) values ($1,$2,1000)", [B, prod.id])),
+    ).rejects.toThrow();
   });
 });
