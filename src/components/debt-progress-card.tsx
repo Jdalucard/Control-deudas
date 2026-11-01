@@ -5,10 +5,14 @@ import { plural } from "@/lib/format";
 export function DebtProgressCard({ debt, rate }: { debt: DebtBalance; rate: number }) {
   const pct = debt.initial_amount > 0 ? Math.min(debt.paid_amount / debt.initial_amount, 1) : 0;
   return (
-    <article className="card">
+    <article className="card relative transition hover:border-primary/50">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <h2 className="font-medium">{debt.name}</h2>
+          <h2 className="font-medium">
+            <Link href={`/debts/${debt.debt_id}`} className="before:absolute before:inset-0">
+              {debt.name}
+            </Link>
+          </h2>
           {debt.creditor && <p className="text-xs text-muted-foreground">{debt.creditor}</p>}
         </div>
         <span className="rounded-full border border-border px-2 py-0.5 text-xs text-muted-foreground">{debt.currency}</span>
@@ -21,7 +25,7 @@ export function DebtProgressCard({ debt, rate }: { debt: DebtBalance; rate: numb
       <p className="mt-1 text-xs text-muted-foreground">
         Pagado {fmtMoney(debt.paid_amount, debt.currency)} de {fmtMoney(debt.initial_amount, debt.currency)} · {plural(debt.payments_count, "abono", "abonos")}
       </p>
-      <Link href={`/payments/new?deuda=${debt.debt_id}`} className="btn-ghost mt-3">Abonar a esta deuda</Link>
+      <Link href={`/payments/new?deuda=${debt.debt_id}`} className="btn-ghost relative z-10 mt-3">Abonar a esta deuda</Link>
     </article>
   );
 }

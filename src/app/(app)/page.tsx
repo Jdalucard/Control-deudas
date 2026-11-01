@@ -6,12 +6,15 @@ import { getTrmOrNull } from "@/lib/trm";
 import { Flash } from "@/lib/flash-toast";
 import { DebtProgressCard } from "@/components/debt-progress-card";
 import { DebtFilter } from "./debt-filter";
+import { QuickActions } from "./quick-actions";
 import { addDebt, archiveDebt, updateDebt } from "./actions";
+import { DeleteDebtButton } from "./delete-debt-button";
 
 type SearchParams = { trm?: string; deuda?: string; abono?: string; m?: string };
 
 export default async function DashboardPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
-  await requireHousehold();
+  const { household } = await requireHousehold();
+  const greetingName = household.name.trim().split(/\s+/)[0] || "";
   const sp = await searchParams;
   const [debts, quote] = await Promise.all([getDebtBalances(), getTrmOrNull()]);
 
@@ -38,6 +41,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     <>
       <Flash code={sp.m} />
 
+      <h1 className="text-xl font-semibold">{greetingName ? `¡Hola, ${greetingName}!` : "Resumen"}</h1>
+      <QuickActions />
+
       {debts.length === 0 ? (
         <section className="card flex flex-col items-start gap-3">
           <h1 className="text-xl font-semibold">Aún no hay deudas</h1>
@@ -63,12 +69,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
                 </>
               )}
             </p>
-            {hasUsd && (
+            {quote && (
               <p className="mt-1 text-xs text-muted-foreground">
-                TRM usada: {fmtTrm(rate)}{" "}
+                TRM {hasUsd ? "usada" : "hoy"}: {fmtTrm(rate)}{" "}
                 {usingOverride
                   ? "(la escribiste tú)"
-                  : quote && `· ${quote.source === "mercado" ? "tasa de mercado" : "TRM oficial"}${quote.asOf ? `, ${dateTimeEs(quote.asOf)}` : ""}`}
+                  : `· ${quote.source === "mercado" ? "tasa de mercado" : "TRM oficial"}${quote.asOf ? `, ${dateTimeEs(quote.asOf)}` : ""}`}
               </p>
             )}
             <div className="mt-4 h-2 overflow-hidden rounded-full bg-background" aria-label="Progreso total">
@@ -198,16 +204,19 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               <span>
                 Saldo actual {fmtMoney(d.balance, d.currency)} · {plural(d.payments_count, "abono", "abonos")}
               </span>
-              <form action={archiveDebt}>
-                <input type="hidden" name="id" value={d.debt_id} />
-                <button className="text-danger hover:underline">Archivar (ya la pagué)</button>
-              </form>
+              <div className="flex items-center gap-3">
+                {d.payments_count === 0 && <DeleteDebtButton debtId={d.debt_id} debtName={d.name} />}
+                <form action={archiveDebt}>
+                  <input type="hidden" name="id" value={d.debt_id} />
+                  <button className="text-danger hover:underline">Archivar (ya la pagué)</button>
+                </form>
+              </div>
             </div>
           </div>
         ))}
       </section>
 
-      <form action={addDebt} className="card grid gap-3 sm:grid-cols-2">
+      <form id="agregar-deuda" action={addDebt} className="card grid gap-3 sm:grid-cols-2 scroll-mt-20">
         <h2 className="font-medium sm:col-span-2">Agregar una deuda</h2>
         <div>
           <label className="label" htmlFor="name">Nombre</label>
