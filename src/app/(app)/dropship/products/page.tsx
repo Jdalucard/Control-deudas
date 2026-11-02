@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getDeletedDropshipProducts, getDropshipProducts, getProductTotals, requireUser } from "@/lib/data";
+import { getDeletedDropshipProducts, getDropshipProducts, getDropshipSettings, getProductTotals, requireUser } from "@/lib/data";
 import { fmtCop } from "@/lib/finance";
 import { dateEs } from "@/lib/format";
 import { decide, fmtPct0to1, isApproved, marginDelivered, scoreTotal } from "@/lib/dropship";
@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DecisionBadge } from "@/components/decision-badge";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { createProduct, reactivateProduct } from "../actions";
+import { DiscoverCandidates } from "./discover-candidates";
 import { ProductsTabs } from "./products-tabs";
 import { RadarTable } from "./radar-table";
 import { ResearchLinks } from "./research-links";
@@ -25,7 +26,12 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function DropshipProductsPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
   await requireUser();
   const { m } = await searchParams;
-  const [products, totals, deletedProducts] = await Promise.all([getDropshipProducts(), getProductTotals(), getDeletedDropshipProducts()]);
+  const [products, totals, deletedProducts, dropshipSettings] = await Promise.all([
+    getDropshipProducts(),
+    getProductTotals(),
+    getDeletedDropshipProducts(),
+    getDropshipSettings(),
+  ]);
   const totalsByProduct = new Map(totals.map((t) => [t.product_id, t]));
 
   const photoPaths = products.map((p) => p.photo_path).filter((p): p is string => !!p);
@@ -176,6 +182,7 @@ export default async function DropshipProductsPage({ searchParams }: { searchPar
           </>
         }
         radar={<RadarTable />}
+        discover={<DiscoverCandidates hasDropiKey={!!dropshipSettings.dropi_api_key} hasSerpApiKey={!!dropshipSettings.serpapi_key} />}
       />
     </>
   );

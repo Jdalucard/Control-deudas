@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { fmtCop } from "@/lib/finance";
 import { dateEs } from "@/lib/format";
@@ -47,6 +47,11 @@ export function RadarTable() {
   const [range, setRange] = useState<RadarRangeFilters>(EMPTY_RANGE_FILTERS);
   const [draftRange, setDraftRange] = useState<RadarRangeFilters>(EMPTY_RANGE_FILTERS);
   const [showLimit, setShowLimit] = useState(25);
+  const filtersRef = useRef<HTMLDetailsElement>(null);
+
+  function closeFilters() {
+    if (filtersRef.current) filtersRef.current.open = false;
+  }
 
   const { rows, loading, error } = useDropshipRadar({ q: qInput, sort, filter, range });
   const visibleRows = useMemo(() => rows.slice(0, showLimit), [rows, showLimit]);
@@ -74,7 +79,7 @@ export function RadarTable() {
             </option>
           ))}
         </select>
-        <details className="relative">
+        <details ref={filtersRef} className="relative">
           <summary className="btn-ghost cursor-pointer list-none text-sm">Filtros avanzados</summary>
           <div className="card absolute right-0 z-20 mt-2 grid w-80 gap-3 sm:w-96 sm:grid-cols-2">
             {RANGE_FIELDS.map((f) => (
@@ -121,11 +126,19 @@ export function RadarTable() {
                 onClick={() => {
                   setDraftRange(EMPTY_RANGE_FILTERS);
                   setRange(EMPTY_RANGE_FILTERS);
+                  closeFilters();
                 }}
               >
                 Limpiar filtros
               </button>
-              <button type="button" className="btn flex-1" onClick={() => setRange(draftRange)}>
+              <button
+                type="button"
+                className="btn flex-1"
+                onClick={() => {
+                  setRange(draftRange);
+                  closeFilters();
+                }}
+              >
                 Aplicar filtros
               </button>
             </div>

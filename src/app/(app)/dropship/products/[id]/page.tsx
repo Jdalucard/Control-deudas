@@ -24,6 +24,7 @@ import { DecisionBadge } from "@/components/decision-badge";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { addAdSpendDay, addOrderBatch, addReturnReason, deleteAdSpendDay, deleteOrderBatch, deleteProduct, deleteReturnReason, reactivateProduct } from "../../actions";
 import { DropiStockCheck } from "./dropi-stock-check";
+import { ProductSaturationCheck } from "./product-saturation-check";
 import { ProductScoreForm } from "./product-score-form";
 
 const PHASE_LABEL: Record<string, string> = { prueba: "Prueba", optimizacion: "Optimización", escalado: "Escalado" };
@@ -165,6 +166,8 @@ export default async function DropshipProductDetailPage({
       <ProductScoreForm product={product} photoUrl={photoUrl} />
 
       <DropiStockCheck productName={product.name} hasApiKey={!!dropshipSettings.dropi_api_key} />
+
+      <ProductSaturationCheck productId={product.id} hasApiKey={!!dropshipSettings.serpapi_key} hasPhoto={!!product.photo_path} />
 
       <section className="card overflow-x-auto p-0">
         <div className="flex items-center justify-between gap-2 px-4 pt-4">
