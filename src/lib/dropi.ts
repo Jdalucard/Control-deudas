@@ -25,8 +25,9 @@ async function dropiPost(path: string, token: string, body: Record<string, unkno
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(8000),
   });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) throw new Error(`HTTP ${res.status}: ${text.slice(0, 300) || "(sin cuerpo)"}`);
+  return JSON.parse(text);
 }
 
 function parseWarehouses(raw: unknown): { name: string; stock: number }[] {
