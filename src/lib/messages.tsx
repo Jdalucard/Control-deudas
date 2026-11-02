@@ -9,7 +9,7 @@ const MESSAGES: Record<string, { kind: "error" | "ok"; text: string }> = {
   trm_requerida: { kind: "error", text: "Escribe la TRM de ese día (es obligatoria para deudas en USD)." },
   deuda_no_encontrada: { kind: "error", text: "No se encontró esa deuda." },
   codigo_invalido: { kind: "error", text: "Código de invitación inválido." },
-  ya_hogar: { kind: "error", text: "Ya perteneces a un hogar." },
+  ya_hogar: { kind: "error", text: "Ya perteneces a un grupo." },
   abono_ok: { kind: "ok", text: "Abono registrado." },
   abono_ok_recibo: { kind: "ok", text: "Abono registrado. Se envió un correo con el recibo, el monto abonado y la deuda total." },
   abono_ok_recibo_error: { kind: "error", text: "El abono se guardó, pero no se pudo subir el recibo. Inténtalo de nuevo." },

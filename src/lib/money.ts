@@ -7,6 +7,7 @@ export async function insertMoneyMovement(input: {
   userId: string;
   accountId: string;
   kind: "ingreso" | "gasto";
+  purpose: "personal" | "negocio";
   amount: number;
   occurredOn: string;
   category: string | null;
@@ -17,6 +18,7 @@ export async function insertMoneyMovement(input: {
     user_id: input.userId,
     account_id: input.accountId,
     kind: input.kind,
+    purpose: input.purpose,
     amount: input.amount,
     occurred_on: input.occurredOn,
     category: input.category,

@@ -20,7 +20,7 @@ export default async function IncomePage({ searchParams }: { searchParams: Promi
     <>
       <div>
         <h1 className="text-xl font-semibold">Ingresos</h1>
-        <p className="text-sm text-muted-foreground">Privado: solo tú ves esta información, aunque compartas hogar con alguien más.</p>
+        <p className="text-sm text-muted-foreground">Privado: solo tú ves esta información, aunque pertenezcas a un grupo con alguien más.</p>
       </div>
       <Flash code={m} />
 
@@ -56,6 +56,13 @@ export default async function IncomePage({ searchParams }: { searchParams: Promi
         <div>
           <label className="label" htmlFor="occurred_on">Fecha</label>
           <input id="occurred_on" name="occurred_on" type="date" defaultValue={todayBogota()} className="input" required />
+        </div>
+        <div>
+          <label className="label" htmlFor="purpose">Tipo</label>
+          <select id="purpose" name="purpose" defaultValue="personal" className="input">
+            <option value="personal">Personal</option>
+            <option value="negocio">Negocio</option>
+          </select>
         </div>
         <div>
           <label className="label" htmlFor="category">Categoría (opcional)</label>

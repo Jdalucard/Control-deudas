@@ -38,6 +38,7 @@ export type MoneyMovement = {
   id: string;
   account_id: string;
   kind: "ingreso" | "gasto";
+  purpose: "personal" | "negocio";
   amount: number;
   occurred_on: string;
   category: string | null;
@@ -157,7 +158,7 @@ export async function getMoneyMovements(limit = 200, kind?: "ingreso" | "gasto")
   const supabase = await createClient();
   let query = supabase
     .from("money_movements")
-    .select("id, account_id, kind, amount, occurred_on, category, note, money_accounts(name, currency)")
+    .select("id, account_id, kind, purpose, amount, occurred_on, category, note, money_accounts(name, currency)")
     .order("occurred_on", { ascending: false })
     .order("created_at", { ascending: false })
     .limit(limit);
