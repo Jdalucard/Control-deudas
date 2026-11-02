@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getAdSpendDays, getAllReturnReasons, getDropshipProduct, getOrderBatches, getProductTotals, requireUser } from "@/lib/data";
+import { getAdSpendDays, getAllReturnReasons, getDropshipProduct, getDropshipSettings, getOrderBatches, getProductTotals, requireUser } from "@/lib/data";
 import { fmtCop } from "@/lib/finance";
 import { dateEs, todayBogota } from "@/lib/format";
 import {
@@ -23,6 +23,7 @@ import { createClient } from "@/lib/supabase/server";
 import { DecisionBadge } from "@/components/decision-badge";
 import { ExportCsvButton } from "@/components/export-csv-button";
 import { addAdSpendDay, addOrderBatch, addReturnReason, deleteAdSpendDay, deleteOrderBatch, deleteProduct, deleteReturnReason, reactivateProduct } from "../../actions";
+import { DropiStockCheck } from "./dropi-stock-check";
 import { ProductScoreForm } from "./product-score-form";
 
 const PHASE_LABEL: Record<string, string> = { prueba: "Prueba", optimizacion: "Optimización", escalado: "Escalado" };
@@ -48,11 +49,12 @@ export default async function DropshipProductDetailPage({
     );
   }
 
-  const [adSpend, orderBatches, totals, allReturnReasons] = await Promise.all([
+  const [adSpend, orderBatches, totals, allReturnReasons, dropshipSettings] = await Promise.all([
     getAdSpendDays(id),
     getOrderBatches(id),
     getProductTotals(),
     getAllReturnReasons(),
+    getDropshipSettings(),
   ]);
   const batchIds = new Set(orderBatches.map((b) => b.id));
   const returnReasons = allReturnReasons.filter((r) => batchIds.has(r.batch_id));
@@ -161,6 +163,8 @@ export default async function DropshipProductDetailPage({
       </section>
 
       <ProductScoreForm product={product} photoUrl={photoUrl} />
+
+      <DropiStockCheck productName={product.name} hasApiKey={!!dropshipSettings.dropi_api_key} />
 
       <section className="card overflow-x-auto p-0">
         <div className="flex items-center justify-between gap-2 px-4 pt-4">

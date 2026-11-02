@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
-import { requireUser } from "@/lib/data";
+import { getDropshipSettings, requireUser } from "@/lib/data";
 import { parseAmount } from "@/lib/finance";
 import { DATE_RE } from "@/lib/money";
 import { HOOKS, PHASES, RETURN_REASONS, STATUSES, type AdSpendPhase, type Hook, type ReturnReason } from "@/lib/dropship";
+import { searchDropiStockOrNull, type DropiStockMatch } from "@/lib/dropi";
 import { createClient } from "@/lib/supabase/server";
 
 const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -405,4 +406,18 @@ export async function saveDropshipSettings(formData: FormData) {
     console.error("saveDropshipSettings: error inesperado", err);
     redirect("/dropship/settings?m=generico");
   }
+}
+
+/** No es un form action (sin redirect): el componente cliente la llama directo y pinta el resultado. */
+export async function checkDropiStock(keywords: string): Promise<{ matches: DropiStockMatch[]; error: string | null }> {
+  await requireUser();
+  const query = keywords.trim();
+  if (!query) return { matches: [], error: "Escribe un nombre para buscar." };
+
+  const settings = await getDropshipSettings();
+  if (!settings.dropi_api_key) return { matches: [], error: "No has configurado tu API key de Dropi en Ajustes." };
+
+  const matches = await searchDropiStockOrNull(settings.dropi_api_key, query);
+  if (matches === null) return { matches: [], error: "No se pudo consultar Dropi (revisa tu API key o intenta de nuevo)." };
+  return { matches, error: null };
 }
