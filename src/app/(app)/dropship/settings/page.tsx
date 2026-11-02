@@ -1,6 +1,7 @@
 import { getDropshipSettings, requireUser } from "@/lib/data";
 import { Flash } from "@/lib/flash-toast";
 import { saveDropshipSettings } from "../actions";
+import { PasswordField } from "./password-field";
 
 export default async function DropshipSettingsPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
   await requireUser();
@@ -18,29 +19,18 @@ export default async function DropshipSettingsPage({ searchParams }: { searchPar
       <form action={saveDropshipSettings} className="card grid gap-4">
         <div>
           <label className="label" htmlFor="dropi_api_key">API key de Dropi</label>
-          <input
-            id="dropi_api_key"
-            name="dropi_api_key"
-            type="password"
-            autoComplete="off"
-            defaultValue={settings.dropi_api_key ?? ""}
-            className="input"
-            placeholder="Pégala aquí cuando la tengas"
-          />
+          <PasswordField id="dropi_api_key" name="dropi_api_key" defaultValue={settings.dropi_api_key ?? ""} placeholder="Pégala aquí cuando la tengas" />
           <p className="mt-1 text-xs text-muted-foreground">
-            No hay una API pública documentada de Dropi todavía; este campo queda listo para cuando tengas una key real o
-            confirmen un endpoint oficial. Mientras tanto, nada se sincroniza automáticamente.
+            Úsala para traer stock real y comparar candidatos en Productos → Descubrir. Debe ser un token de integración
+            tipo &quot;WooComerce&quot; (no &quot;Lucidbot&quot;), creado desde Dropi → Mis Integraciones.
           </p>
         </div>
         <div>
           <label className="label" htmlFor="serpapi_key">API key de SerpApi (búsqueda visual)</label>
-          <input
+          <PasswordField
             id="serpapi_key"
             name="serpapi_key"
-            type="password"
-            autoComplete="off"
             defaultValue={settings.serpapi_key ?? ""}
-            className="input"
             placeholder="Pégala aquí si vas a usar búsqueda por imagen"
           />
           <p className="mt-1 text-xs text-muted-foreground">
