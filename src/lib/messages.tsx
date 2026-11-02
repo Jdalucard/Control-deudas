@@ -39,6 +39,9 @@ const MESSAGES: Record<string, { kind: "error" | "ok"; text: string }> = {
   tanda_ok: { kind: "ok", text: "Tanda de pedidos registrada." },
   tanda_borrada: { kind: "ok", text: "Tanda de pedidos eliminada." },
   tanda_invalida: { kind: "error", text: "Los pedidos entregados y devueltos no pueden superar los pedidos creados de la tanda." },
+  motivo_ok: { kind: "ok", text: "Motivo de devolución registrado." },
+  motivo_borrado: { kind: "ok", text: "Motivo de devolución eliminado." },
+  ajustes_ok: { kind: "ok", text: "Ajustes guardados." },
   generico: { kind: "error", text: "Algo salió mal. Inténtalo de nuevo." },
 };
 

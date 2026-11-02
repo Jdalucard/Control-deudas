@@ -9,7 +9,7 @@ export function ResearchLinks() {
   const hasQuery = query.trim().length > 0;
   const q = encodeURIComponent(query.trim());
   const tiktokSearchUrl = `https://www.tiktok.com/search?q=${q}`;
-  const adLibraryUrl = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=CO&q=${q}&search_type=keyword_unordered`;
+  const adLibraryUrl = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&q=${q}&search_type=keyword_unordered`;
   const creativeCenterUrl = "https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en";
 
   return (

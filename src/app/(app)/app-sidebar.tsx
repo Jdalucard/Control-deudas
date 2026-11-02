@@ -2,7 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, HandCoins, TrendingUp, TrendingDown, Settings, Package, Gauge, SlidersHorizontal, MessageCircle } from "lucide-react";
+import {
+  LayoutDashboard,
+  HandCoins,
+  TrendingUp,
+  TrendingDown,
+  Settings,
+  Package,
+  Gauge,
+  SlidersHorizontal,
+  MessageCircle,
+  Radar,
+  RotateCcw,
+  Wallet,
+  CalendarDays,
+  Plug,
+} from "lucide-react";
 import { signOut } from "@/app/login/actions";
 import { ModeToggle } from "@/components/mode-toggle";
 import {
@@ -33,9 +48,14 @@ const NAV_GROUPS = [
     label: "Dropshipping · Dropi",
     items: [
       { href: "/dropship/products", label: "Productos", icon: Package },
+      { href: "/dropship/radar", label: "Radar", icon: Radar },
       { href: "/dropship/effectiveness", label: "Efectividad", icon: Gauge },
       { href: "/dropship/simulator", label: "Simulador", icon: SlidersHorizontal },
       { href: "/dropship/whatsapp", label: "Mensajes WhatsApp", icon: MessageCircle },
+      { href: "/dropship/returns", label: "Devoluciones", icon: RotateCcw },
+      { href: "/dropship/cashflow", label: "Caja", icon: Wallet },
+      { href: "/dropship/calendar", label: "Calendario", icon: CalendarDays },
+      { href: "/dropship/settings", label: "Ajustes", icon: Plug },
     ],
   },
 ];
@@ -52,7 +72,7 @@ export function AppSidebar() {
       <SidebarHeader>
         <div className="flex items-center justify-between gap-2 px-2 py-1.5">
           <Link href="/" className="font-semibold">
-            Control de Deuda y Gastos
+            Capital
           </Link>
           <ModeToggle />
         </div>

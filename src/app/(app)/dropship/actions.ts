@@ -5,7 +5,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 import { requireUser } from "@/lib/data";
 import { parseAmount } from "@/lib/finance";
 import { DATE_RE } from "@/lib/money";
-import { HOOKS, PHASES, STATUSES, type AdSpendPhase, type Hook } from "@/lib/dropship";
+import { HOOKS, PHASES, RETURN_REASONS, STATUSES, type AdSpendPhase, type Hook, type ReturnReason } from "@/lib/dropship";
 import { createClient } from "@/lib/supabase/server";
 
 const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -328,5 +328,81 @@ export async function deleteOrderBatch(formData: FormData) {
     unstable_rethrow(err);
     console.error("deleteOrderBatch: error inesperado", err);
     redirect(`/dropship/products/${productId || ""}?m=generico`);
+  }
+}
+
+export async function addReturnReason(formData: FormData) {
+  const productId = String(formData.get("product_id") ?? "");
+  try {
+    const user = await requireUser();
+    const batchId = String(formData.get("batch_id") ?? "");
+    const reason = String(formData.get("reason") ?? "");
+    const count = Math.round(Number(formData.get("count") ?? 0));
+
+    if (!productId) redirect("/dropship/products?m=generico");
+    if (!batchId) redirect(`/dropship/products/${productId}?m=campos`);
+    if (!RETURN_REASONS.includes(reason as ReturnReason)) redirect(`/dropship/products/${productId}?m=campos`);
+    if (!count || count <= 0) redirect(`/dropship/products/${productId}?m=monto_invalido`);
+
+    const supabase = await createClient();
+    const { error } = await supabase.from("dropship_return_reasons").insert({ user_id: user.id, batch_id: batchId, reason, count });
+    if (error) {
+      console.error("addReturnReason:", error.code, error.message);
+      redirect(`/dropship/products/${productId}?m=generico`);
+    }
+    revalidateProduct(productId);
+    revalidatePath("/dropship/returns");
+    redirect(`/dropship/products/${productId}?m=motivo_ok`);
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error("addReturnReason: error inesperado", err);
+    redirect(`/dropship/products/${productId || ""}?m=generico`);
+  }
+}
+
+export async function deleteReturnReason(formData: FormData) {
+  const productId = String(formData.get("product_id") ?? "");
+  try {
+    await requireUser();
+    const id = String(formData.get("id") ?? "");
+    if (!id) redirect(`/dropship/products/${productId}?m=generico`);
+    const supabase = await createClient();
+    const { error } = await supabase.from("dropship_return_reasons").delete().eq("id", id);
+    if (error) {
+      console.error("deleteReturnReason:", error.code, error.message);
+      redirect(`/dropship/products/${productId}?m=generico`);
+    }
+    revalidateProduct(productId);
+    revalidatePath("/dropship/returns");
+    redirect(`/dropship/products/${productId}?m=motivo_borrado`);
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error("deleteReturnReason: error inesperado", err);
+    redirect(`/dropship/products/${productId || ""}?m=generico`);
+  }
+}
+
+export async function saveDropshipSettings(formData: FormData) {
+  try {
+    const user = await requireUser();
+    const dropiApiKey = String(formData.get("dropi_api_key") ?? "").trim() || null;
+    const serpapiKey = String(formData.get("serpapi_key") ?? "").trim() || null;
+    const settlementDays = Math.round(Number(formData.get("settlement_days") ?? 7));
+    if (!settlementDays || settlementDays <= 0) redirect("/dropship/settings?m=monto_invalido");
+
+    const supabase = await createClient();
+    const { error } = await supabase
+      .from("dropship_settings")
+      .upsert({ user_id: user.id, dropi_api_key: dropiApiKey, serpapi_key: serpapiKey, settlement_days: settlementDays, updated_at: new Date().toISOString() });
+    if (error) {
+      console.error("saveDropshipSettings:", error.code, error.message);
+      redirect("/dropship/settings?m=generico");
+    }
+    revalidatePath("/dropship/settings");
+    redirect("/dropship/settings?m=ajustes_ok");
+  } catch (err) {
+    unstable_rethrow(err);
+    console.error("saveDropshipSettings: error inesperado", err);
+    redirect("/dropship/settings?m=generico");
   }
 }

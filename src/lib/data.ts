@@ -3,7 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Currency, DebtBalance } from "@/lib/finance";
-import type { AdSpendDay, DropshipProduct, OrderBatch, ProductTotals } from "@/lib/dropship";
+import type { AdSpendDay, DropshipProduct, OrderBatch, ProductTotals, ReturnReasonEntry } from "@/lib/dropship";
 
 export type Household = { id: string; name: string; invite_code: string };
 
@@ -219,15 +219,20 @@ export async function getAdSpendDays(productId: string): Promise<AdSpendDay[]> {
   return (data ?? []).map((r) => ({ ...r, amount_cop: Number(r.amount_cop) })) as AdSpendDay[];
 }
 
+const ORDER_BATCH_COLUMNS =
+  "id, product_id, period_start, period_end, orders_created, orders_confirmed, orders_dispatched, orders_delivered, orders_returned, note";
+
 export async function getOrderBatches(productId: string): Promise<OrderBatch[]> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("dropship_order_batches")
-    .select("id, product_id, period_start, period_end, orders_created, orders_confirmed, orders_dispatched, orders_delivered, orders_returned, note")
-    .eq("product_id", productId)
-    .order("period_start", { ascending: false });
+  const { data } = await supabase.from("dropship_order_batches").select(ORDER_BATCH_COLUMNS).eq("product_id", productId).order("period_start", { ascending: false });
   return (data ?? []) as OrderBatch[];
 }
+
+export const getAllOrderBatches = cache(async (): Promise<OrderBatch[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase.from("dropship_order_batches").select(ORDER_BATCH_COLUMNS).order("period_start", { ascending: false });
+  return (data ?? []) as OrderBatch[];
+});
 
 export const getProductTotals = cache(async (): Promise<ProductTotals[]> => {
   const supabase = await createClient();
@@ -235,4 +240,21 @@ export const getProductTotals = cache(async (): Promise<ProductTotals[]> => {
     .from("dropship_product_totals")
     .select("product_id, total_spent, total_orders_created_ads, total_orders_logged, total_delivered, total_returned");
   return (data ?? []).map((r) => ({ ...r, total_spent: Number(r.total_spent) })) as ProductTotals[];
+});
+
+export const getAllReturnReasons = cache(async (): Promise<ReturnReasonEntry[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("dropship_return_reasons")
+    .select("id, batch_id, reason, count, created_at")
+    .order("created_at", { ascending: false });
+  return (data ?? []) as ReturnReasonEntry[];
+});
+
+export type DropshipSettings = { dropi_api_key: string | null; serpapi_key: string | null; settlement_days: number };
+
+export const getDropshipSettings = cache(async (): Promise<DropshipSettings> => {
+  const supabase = await createClient();
+  const { data } = await supabase.from("dropship_settings").select("dropi_api_key, serpapi_key, settlement_days").maybeSingle();
+  return data ? { ...data, settlement_days: Number(data.settlement_days) } : { dropi_api_key: null, serpapi_key: null, settlement_days: 7 };
 });
