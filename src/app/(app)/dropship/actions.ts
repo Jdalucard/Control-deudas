@@ -2,11 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
-import { getDropshipSettings, requireUser } from "@/lib/data";
+import { getDropshipProduct, getDropshipSettings, requireUser } from "@/lib/data";
 import { parseAmount } from "@/lib/finance";
 import { DATE_RE } from "@/lib/money";
 import { HOOKS, PHASES, RETURN_REASONS, STATUSES, type AdSpendPhase, type Hook, type ReturnReason } from "@/lib/dropship";
-import { searchDropiStockOrNull, type DropiStockMatch } from "@/lib/dropi";
+import { searchDropiStock, type DropiStockMatch } from "@/lib/dropi";
+import { fetchVisualMatchesOrNull, type VisualMatch } from "@/lib/serpapi";
 import { createClient } from "@/lib/supabase/server";
 
 const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -417,7 +418,81 @@ export async function checkDropiStock(keywords: string): Promise<{ matches: Drop
   const settings = await getDropshipSettings();
   if (!settings.dropi_api_key) return { matches: [], error: "No has configurado tu API key de Dropi en Ajustes." };
 
-  const matches = await searchDropiStockOrNull(settings.dropi_api_key, query);
-  if (matches === null) return { matches: [], error: "No se pudo consultar Dropi (revisa tu API key o intenta de nuevo)." };
+  try {
+    const matches = await searchDropiStock(settings.dropi_api_key, query);
+    return { matches, error: null };
+  } catch (err) {
+    console.error("checkDropiStock:", err);
+    const detail = err instanceof Error ? err.message : "error desconocido";
+    return { matches: [], error: `No se pudo consultar Dropi: ${detail}` };
+  }
+}
+
+/** No es un form action (sin redirect): el componente cliente la llama directo y pinta el resultado. */
+export async function checkProductSaturation(productId: string): Promise<{ matches: VisualMatch[]; error: string | null }> {
+  await requireUser();
+  const product = await getDropshipProduct(productId);
+  if (!product) return { matches: [], error: "Producto no encontrado." };
+  if (!product.photo_path) return { matches: [], error: "Sube una foto al producto para poder buscarla visualmente." };
+
+  const settings = await getDropshipSettings();
+  if (!settings.serpapi_key) return { matches: [], error: "No has configurado tu API key de SerpApi en Ajustes." };
+
+  const supabase = await createClient();
+  const { data: signed } = await supabase.storage.from("dropship-photos").createSignedUrl(product.photo_path, 300);
+  if (!signed?.signedUrl) return { matches: [], error: "No se pudo generar el enlace de la foto." };
+
+  const matches = await fetchVisualMatchesOrNull(settings.serpapi_key, signed.signedUrl);
+  if (matches === null) return { matches: [], error: "No se pudo consultar SerpApi (revisa tu API key o intenta de nuevo)." };
   return { matches, error: null };
+}
+
+/**
+ * Igual que checkProductSaturation, pero para un candidato del catálogo de Dropi que todavía no has
+ * creado como producto: usa la foto que ya trae Dropi (pública), sin necesidad de subir nada.
+ */
+export async function checkImageUrlSaturation(imageUrl: string): Promise<{ matches: VisualMatch[]; error: string | null }> {
+  await requireUser();
+  if (!imageUrl) return { matches: [], error: "Ese candidato no tiene foto en Dropi." };
+
+  const settings = await getDropshipSettings();
+  if (!settings.serpapi_key) return { matches: [], error: "No has configurado tu API key de SerpApi en Ajustes." };
+
+  const matches = await fetchVisualMatchesOrNull(settings.serpapi_key, imageUrl);
+  if (matches === null) return { matches: [], error: "No se pudo consultar SerpApi (revisa tu API key o intenta de nuevo)." };
+  return { matches, error: null };
+}
+
+/** Crea un producto candidato a partir de un resultado del catálogo de Dropi (costo lo escribes tú: Dropi no lo expone por la API). */
+export async function createProductFromDropi(input: {
+  name: string;
+  stockAvailable: number;
+  costCop: number;
+  priceCop: number;
+}): Promise<{ productId: string | null; error: string | null }> {
+  const user = await requireUser();
+  const name = input.name.trim().slice(0, 200);
+  if (!name) return { productId: null, error: "Nombre inválido." };
+  if (!input.costCop || input.costCop <= 0) return { productId: null, error: "El costo debe ser mayor a 0." };
+  if (!input.priceCop || input.priceCop <= 0) return { productId: null, error: "El precio de venta debe ser mayor a 0." };
+
+  const supabase = await createClient();
+  const { data: product, error } = await supabase
+    .from("dropship_products")
+    .insert({
+      user_id: user.id,
+      name,
+      cost_cop: input.costCop,
+      price_cop: input.priceCop,
+      stock_available: Math.max(0, Math.round(input.stockAvailable)),
+    })
+    .select("id")
+    .single();
+  if (error || !product) {
+    console.error("createProductFromDropi:", error?.code, error?.message);
+    return { productId: null, error: "No se pudo crear el producto." };
+  }
+
+  revalidatePath("/dropship/products");
+  return { productId: product.id, error: null };
 }

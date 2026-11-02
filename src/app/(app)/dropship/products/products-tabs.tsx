@@ -5,11 +5,12 @@ import { useState, type ReactNode } from "react";
 const TABS = [
   { key: "lista", label: "Lista" },
   { key: "radar", label: "Radar" },
+  { key: "descubrir", label: "Descubrir" },
 ] as const;
 
 type Tab = (typeof TABS)[number]["key"];
 
-export function ProductsTabs({ list, radar }: { list: ReactNode; radar: ReactNode }) {
+export function ProductsTabs({ list, radar, discover }: { list: ReactNode; radar: ReactNode; discover: ReactNode }) {
   const [tab, setTab] = useState<Tab>("lista");
 
   return (
@@ -29,9 +30,10 @@ export function ProductsTabs({ list, radar }: { list: ReactNode; radar: ReactNod
         ))}
       </div>
 
-      {/* Ambas se montan una sola vez: así el radar no pierde su caché ni su estado (búsqueda, filtros) al cambiar de pestaña. */}
+      {/* Las tres se montan una sola vez: así no pierden su estado (búsqueda, filtros) al cambiar de pestaña. */}
       <div className={tab === "lista" ? "contents" : "hidden"}>{list}</div>
       <div className={tab === "radar" ? "contents" : "hidden"}>{radar}</div>
+      <div className={tab === "descubrir" ? "contents" : "hidden"}>{discover}</div>
     </div>
   );
 }
