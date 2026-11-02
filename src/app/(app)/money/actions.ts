@@ -83,6 +83,8 @@ export async function addExpense(formData: FormData) {
     const amount = parseAmount(String(formData.get("amount") ?? ""));
     const category = String(formData.get("category") ?? "").trim().slice(0, 80) || null;
     const note = String(formData.get("note") ?? "").trim().slice(0, 300) || null;
+    const purposeRaw = String(formData.get("purpose") ?? "");
+    const purpose = purposeRaw === "negocio" ? "negocio" : "personal";
 
     if (!accountId || !DATE_RE.test(occurredOn)) redirect("/money?m=campos");
     if (!amount || amount <= 0) redirect("/money?m=monto_invalido");
@@ -91,6 +93,7 @@ export async function addExpense(formData: FormData) {
       userId: user.id,
       accountId,
       kind: "gasto",
+      purpose,
       amount,
       occurredOn,
       category,

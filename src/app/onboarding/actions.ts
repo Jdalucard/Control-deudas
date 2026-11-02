@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 export async function createHousehold(formData: FormData) {
   try {
     await requireUser();
-    const name = String(formData.get("name") ?? "").trim() || "Mi hogar";
+    const name = String(formData.get("name") ?? "").trim() || "Mi grupo";
     const supabase = await createClient();
     const { error } = await supabase.rpc("create_household", { p_name: name });
     if (error) {

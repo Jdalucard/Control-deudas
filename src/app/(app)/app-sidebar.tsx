@@ -12,7 +12,6 @@ import {
   Gauge,
   SlidersHorizontal,
   MessageCircle,
-  Radar,
   RotateCcw,
   Wallet,
   CalendarDays,
@@ -48,7 +47,6 @@ const NAV_GROUPS = [
     label: "Dropshipping · Dropi",
     items: [
       { href: "/dropship/products", label: "Productos", icon: Package },
-      { href: "/dropship/radar", label: "Radar", icon: Radar },
       { href: "/dropship/effectiveness", label: "Efectividad", icon: Gauge },
       { href: "/dropship/simulator", label: "Simulador", icon: SlidersHorizontal },
       { href: "/dropship/whatsapp", label: "Mensajes WhatsApp", icon: MessageCircle },

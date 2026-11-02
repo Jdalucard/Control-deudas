@@ -57,6 +57,7 @@ describe("esquema de deudas", () => {
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0009_dropship_product_delete.sql"), "utf8"));
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0010_dropship_return_reasons.sql"), "utf8"));
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0011_dropship_settings.sql"), "utf8"));
+    await db.exec(readFileSync(path.join(__dirname, "../migrations/0012_money_movement_purpose.sql"), "utf8"));
   });
 
   it("A crea un hogar y B no lo ve", async () => {
@@ -192,6 +193,16 @@ describe("esquema de deudas", () => {
   it("B no puede insertar un movimiento contra la cuenta de A", async () => {
     await expect(
       as(B, () => rows("insert into public.money_movements (user_id, account_id, kind, amount) values ($1,$2,'gasto',1)", [B, accountA])),
+    ).rejects.toThrow();
+  });
+
+  it("purpose de un movimiento es 'personal' por defecto y solo acepta 'personal' o 'negocio'", async () => {
+    const [mv] = await as(A, () =>
+      rows("insert into public.money_movements (user_id, account_id, kind, amount) values ($1,$2,'gasto',1) returning purpose", [A, accountA]),
+    );
+    expect(mv.purpose).toBe("personal");
+    await expect(
+      as(A, () => rows("insert into public.money_movements (user_id, account_id, kind, amount, purpose) values ($1,$2,'gasto',1,'otro')", [A, accountA])),
     ).rejects.toThrow();
   });
 

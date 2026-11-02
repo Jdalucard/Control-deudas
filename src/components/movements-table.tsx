@@ -1,18 +1,21 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { fmtMoney } from "@/lib/finance";
+import { fmtMoney, type Currency } from "@/lib/finance";
 import { dateEs } from "@/lib/format";
 import { downloadCsv, rowsToCsv } from "@/lib/csv";
 import type { MoneyMovement } from "@/lib/data";
 
+const PURPOSE_LABEL: Record<MoneyMovement["purpose"], string> = { personal: "Personal", negocio: "Negocio" };
+
 function movementsToCsv(movements: MoneyMovement[]): string {
-  const header = ["Fecha", "Cuenta", "Monto", "Moneda", "Categoría", "Nota"];
+  const header = ["Fecha", "Cuenta", "Monto", "Moneda", "Tipo", "Categoría", "Nota"];
   const rows = movements.map((m) => [
     dateEs(m.occurred_on),
     m.money_accounts?.name ?? "",
     String(m.amount),
     m.money_accounts?.currency ?? "",
+    PURPOSE_LABEL[m.purpose],
     m.category ?? "",
     m.note ?? "",
   ]);
@@ -33,6 +36,7 @@ export function MovementsTable({
   tableTitle: string;
 }) {
   const [accountFilter, setAccountFilter] = useState("");
+  const [purposeFilter, setPurposeFilter] = useState<"" | MoneyMovement["purpose"]>("");
   const [query, setQuery] = useState("");
 
   const accountOptions = useMemo(() => {
@@ -45,6 +49,7 @@ export function MovementsTable({
 
   const filtered = movements.filter((m) => {
     if (accountFilter && m.account_id !== accountFilter) return false;
+    if (purposeFilter && m.purpose !== purposeFilter) return false;
     if (query) {
       const q = query.toLowerCase();
       const hay = `${m.category ?? ""} ${m.note ?? ""}`.toLowerCase();
@@ -52,6 +57,16 @@ export function MovementsTable({
     }
     return true;
   });
+
+  const totalsByPurpose = useMemo(() => {
+    const totals: Record<MoneyMovement["purpose"], Map<Currency, number>> = { personal: new Map(), negocio: new Map() };
+    filtered.forEach((m) => {
+      const currency: Currency = m.money_accounts?.currency ?? "COP";
+      const byCurrency = totals[m.purpose];
+      byCurrency.set(currency, (byCurrency.get(currency) ?? 0) + m.amount);
+    });
+    return totals;
+  }, [filtered]);
 
   return (
     <section className="card overflow-x-auto p-0">
@@ -68,6 +83,19 @@ export function MovementsTable({
             </select>
           </div>
         )}
+        <div>
+          <label className="label" htmlFor="f-tipo">Tipo</label>
+          <select
+            id="f-tipo"
+            className="input"
+            value={purposeFilter}
+            onChange={(e) => setPurposeFilter(e.target.value as "" | MoneyMovement["purpose"])}
+          >
+            <option value="">Todos</option>
+            <option value="personal">Personal</option>
+            <option value="negocio">Negocio</option>
+          </select>
+        </div>
         <div>
           <label className="label" htmlFor="f-query">Buscar</label>
           <input
@@ -87,6 +115,20 @@ export function MovementsTable({
           Exportar CSV
         </button>
       </div>
+      {(totalsByPurpose.personal.size > 0 || totalsByPurpose.negocio.size > 0) && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 border-t border-border px-4 py-2 text-xs text-muted-foreground">
+          {totalsByPurpose.negocio.size > 0 && (
+            <span>
+              Negocio: {Array.from(totalsByPurpose.negocio, ([c, v]) => fmtMoney(v, c)).join(" · ")}
+            </span>
+          )}
+          {totalsByPurpose.personal.size > 0 && (
+            <span>
+              Personal: {Array.from(totalsByPurpose.personal, ([c, v]) => fmtMoney(v, c)).join(" · ")}
+            </span>
+          )}
+        </div>
+      )}
       {filtered.length === 0 ? (
         <p className="px-4 pb-4 pt-2 text-sm text-muted-foreground">{movements.length === 0 ? emptyText : "Ningún movimiento coincide con el filtro."}</p>
       ) : (
@@ -96,6 +138,7 @@ export function MovementsTable({
               <th className="px-4 py-2 font-medium">Fecha</th>
               <th className="px-2 py-2 font-medium">Cuenta</th>
               <th className="px-2 py-2 text-right font-medium">Monto</th>
+              <th className="px-2 py-2 font-medium">Tipo</th>
               <th className="px-2 py-2 font-medium">Categoría / nota</th>
               <th className="px-4 py-2" />
             </tr>
@@ -107,6 +150,15 @@ export function MovementsTable({
                 <td className="px-2 py-2">{mv.money_accounts?.name ?? "—"}</td>
                 <td className="whitespace-nowrap px-2 py-2 text-right">
                   {mv.money_accounts ? fmtMoney(mv.amount, mv.money_accounts.currency) : mv.amount}
+                </td>
+                <td className="px-2 py-2">
+                  <span
+                    className={`rounded-full border px-2 py-0.5 text-xs ${
+                      mv.purpose === "negocio" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground"
+                    }`}
+                  >
+                    {PURPOSE_LABEL[mv.purpose]}
+                  </span>
                 </td>
                 <td className="max-w-48 truncate px-2 py-2 text-muted-foreground">{[mv.category, mv.note].filter(Boolean).join(" · ") || "—"}</td>
                 <td className="px-4 py-2 text-right">
