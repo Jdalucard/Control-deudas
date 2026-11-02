@@ -9,8 +9,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: "Control de Deuda y Gastos",
-  description: "Registro de abonos y deuda total con TRM",
+  title: "Capital",
+  description: "Deudas, gastos y tu negocio de dropshipping, en un solo lugar",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

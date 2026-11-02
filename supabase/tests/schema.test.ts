@@ -55,6 +55,8 @@ describe("esquema de deudas", () => {
     // 0007 también crea un bucket de Storage (foto del producto); se omite por la misma razón que 0002.
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0008_dropship_ad_spend_hook.sql"), "utf8"));
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0009_dropship_product_delete.sql"), "utf8"));
+    await db.exec(readFileSync(path.join(__dirname, "../migrations/0010_dropship_return_reasons.sql"), "utf8"));
+    await db.exec(readFileSync(path.join(__dirname, "../migrations/0011_dropship_settings.sql"), "utf8"));
   });
 
   it("A crea un hogar y B no lo ve", async () => {
@@ -243,5 +245,40 @@ describe("esquema de deudas", () => {
     await expect(
       as(B, () => rows("insert into public.dropship_ad_spend (user_id, product_id, amount_cop) values ($1,$2,1000)", [B, prod.id])),
     ).rejects.toThrow();
+  });
+
+  it("A desglosa los motivos de devolución de una tanda; B no los ve ni puede insertar contra ella", async () => {
+    const [prod] = await as(A, () =>
+      rows("insert into public.dropship_products (user_id, name, cost_cop, price_cop) values ($1,'Tercero',15000,60000) returning id", [A]),
+    );
+    const [batch] = await as(A, () =>
+      rows(
+        "insert into public.dropship_order_batches (user_id, product_id, period_start, period_end, orders_created, orders_delivered, orders_returned) values ($1,$2,'2026-02-01','2026-02-05',20,14,6) returning id",
+        [A, prod.id],
+      ),
+    );
+    await as(A, () =>
+      rows("insert into public.dropship_return_reasons (user_id, batch_id, reason, count) values ($1,$2,'direccion_errada',4)", [A, batch.id]),
+    );
+    expect(await as(A, () => rows("select * from public.dropship_return_reasons"))).toHaveLength(1);
+    expect(await as(B, () => rows("select * from public.dropship_return_reasons"))).toHaveLength(0);
+    await expect(
+      as(B, () => rows("insert into public.dropship_return_reasons (user_id, batch_id, reason, count) values ($1,$2,'otro',1)", [B, batch.id])),
+    ).rejects.toThrow();
+  });
+
+  it("A guarda sus ajustes de integraciones; B no los ve ni puede sobrescribirlos", async () => {
+    await as(A, () =>
+      rows(
+        "insert into public.dropship_settings (user_id, dropi_api_key, settlement_days) values ($1,'clave-de-prueba',5)",
+        [A],
+      ),
+    );
+    const settingsA = (await as(A, () => rows("select dropi_api_key, settlement_days from public.dropship_settings where user_id=$1", [A])))[0];
+    expect(settingsA.dropi_api_key).toBe("clave-de-prueba");
+    expect(Number(settingsA.settlement_days)).toBe(5);
+    expect(await as(B, () => rows("select * from public.dropship_settings"))).toHaveLength(0);
+    const blocked = await as(B, () => rows("update public.dropship_settings set dropi_api_key='hackeada' where user_id=$1 returning user_id", [A]));
+    expect(blocked).toHaveLength(0);
   });
 });

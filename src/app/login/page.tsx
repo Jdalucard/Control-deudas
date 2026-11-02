@@ -10,8 +10,8 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
   return (
     <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-6 px-4 py-12">
       <div>
-        <h1 className="text-2xl font-semibold">Control de Deuda y Gastos</h1>
-        <p className="mt-1 text-sm text-muted-foreground">Entra para ver tu deuda total y registrar abonos.</p>
+        <h1 className="text-2xl font-semibold">Capital</h1>
+        <p className="mt-1 text-sm text-muted-foreground">Entra para ver tus deudas, tus gastos y tu negocio de dropshipping.</p>
       </div>
       <form className="card flex flex-col gap-4">
         <Flash code={m} />

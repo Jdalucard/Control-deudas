@@ -77,6 +77,34 @@ export type ProductTotals = {
   total_returned: number;
 };
 
+export type ReturnReason = "no_contesto" | "direccion_errada" | "se_arrepintio" | "rechazo_producto" | "producto_distinto" | "otro";
+export const RETURN_REASONS: ReturnReason[] = ["no_contesto", "direccion_errada", "se_arrepintio", "rechazo_producto", "producto_distinto", "otro"];
+export const RETURN_REASON_LABEL: Record<ReturnReason, string> = {
+  no_contesto: "No contestó",
+  direccion_errada: "Dirección errada",
+  se_arrepintio: "Se arrepintió",
+  rechazo_producto: "Rechazó el producto",
+  producto_distinto: "Producto distinto al esperado",
+  otro: "Otro",
+};
+/** Pista de dónde está el problema, según qué motivo domina (criterio del informe del usuario). */
+export const RETURN_REASON_HINT: Record<ReturnReason, string> = {
+  no_contesto: "El problema está en la confirmación: automatiza o agiliza el mensaje de WhatsApp.",
+  direccion_errada: "El problema está en el formulario de la página: pide la dirección más clara.",
+  se_arrepintio: "El problema está en la promesa del anuncio: el video genera expectativas que el producto no cumple.",
+  rechazo_producto: "Revisa la calidad o la presentación del producto físico.",
+  producto_distinto: "Revisa al proveedor: lo que llega no es lo que se ofrece en el anuncio.",
+  otro: "Sin patrón claro todavía.",
+};
+
+export type ReturnReasonEntry = {
+  id: string;
+  batch_id: string;
+  reason: ReturnReason;
+  count: number;
+  created_at: string;
+};
+
 // ───────────── Umbrales (ajustables; todos vienen de los tres documentos de análisis) ─────────────
 /** Regla del 3x: el precio de venta debe ser al menos 3 veces el costo en Dropi. */
 export const MARGIN_MULTIPLE = 3;

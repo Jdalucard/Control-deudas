@@ -65,7 +65,7 @@ export function ProductScoreForm({ product, photoUrl }: { product: DropshipProdu
     return { margin: marginDelivered(p), score: scoreTotal(p), passes: passesNonNegotiables(p), approved: isApproved(p) };
   }, [form]);
 
-  const adLibraryUrl = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=CO&q=${encodeURIComponent(form.name)}&search_type=keyword_unordered`;
+  const adLibraryUrl = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&q=${encodeURIComponent(form.name)}&search_type=keyword_unordered`;
 
   return (
     <form action={updateProduct} className="card flex flex-col gap-4">

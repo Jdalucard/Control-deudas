@@ -1,11 +1,14 @@
 import Link from "next/link";
-import { getAdSpendDays, getDropshipProduct, getOrderBatches, getProductTotals, requireUser } from "@/lib/data";
+import { getAdSpendDays, getAllReturnReasons, getDropshipProduct, getOrderBatches, getProductTotals, requireUser } from "@/lib/data";
 import { fmtCop } from "@/lib/finance";
 import { dateEs, todayBogota } from "@/lib/format";
 import {
   HOOKS,
   HOOK_LABEL,
   REFERENCE_DELIVERY_RATE,
+  RETURN_REASONS,
+  RETURN_REASON_HINT,
+  RETURN_REASON_LABEL,
   cacCreated,
   decide,
   deliveryRate,
@@ -19,7 +22,7 @@ import { Flash } from "@/lib/flash-toast";
 import { createClient } from "@/lib/supabase/server";
 import { DecisionBadge } from "@/components/decision-badge";
 import { ExportCsvButton } from "@/components/export-csv-button";
-import { addAdSpendDay, addOrderBatch, deleteAdSpendDay, deleteOrderBatch, deleteProduct, reactivateProduct } from "../../actions";
+import { addAdSpendDay, addOrderBatch, addReturnReason, deleteAdSpendDay, deleteOrderBatch, deleteProduct, deleteReturnReason, reactivateProduct } from "../../actions";
 import { ProductScoreForm } from "./product-score-form";
 
 const PHASE_LABEL: Record<string, string> = { prueba: "Prueba", optimizacion: "Optimización", escalado: "Escalado" };
@@ -45,7 +48,23 @@ export default async function DropshipProductDetailPage({
     );
   }
 
-  const [adSpend, orderBatches, totals] = await Promise.all([getAdSpendDays(id), getOrderBatches(id), getProductTotals()]);
+  const [adSpend, orderBatches, totals, allReturnReasons] = await Promise.all([
+    getAdSpendDays(id),
+    getOrderBatches(id),
+    getProductTotals(),
+    getAllReturnReasons(),
+  ]);
+  const batchIds = new Set(orderBatches.map((b) => b.id));
+  const returnReasons = allReturnReasons.filter((r) => batchIds.has(r.batch_id));
+  const batchLabel = (batchId: string) => {
+    const b = orderBatches.find((o) => o.id === batchId);
+    return b ? `${dateEs(b.period_start)} – ${dateEs(b.period_end)}` : "—";
+  };
+  const reasonTotals = returnReasons.reduce<Partial<Record<string, number>>>((acc, r) => {
+    acc[r.reason] = (acc[r.reason] ?? 0) + r.count;
+    return acc;
+  }, {});
+  const topReason = Object.entries(reasonTotals).sort((a, b) => (b[1] ?? 0) - (a[1] ?? 0))[0]?.[0] as keyof typeof RETURN_REASON_HINT | undefined;
   const total = totals.find((t) => t.product_id === id) ?? {
     product_id: id,
     total_spent: 0,
@@ -341,6 +360,83 @@ export default async function DropshipProductDetailPage({
             <input id="note_batch" name="note" maxLength={300} className="input" placeholder="Motivo de las devoluciones, transportadora, ciudad..." />
           </div>
         </form>
+      </section>
+
+      <section className="card overflow-x-auto p-0">
+        <div className="flex items-center justify-between gap-2 px-4 pt-4">
+          <h2 className="font-medium">Motivos de devolución</h2>
+          <Link href="/dropship/returns" className="text-xs text-primary hover:underline">
+            Ver auditoría de todos los productos →
+          </Link>
+        </div>
+        {returnReasons.length === 0 ? (
+          <p className="px-4 pb-4 pt-2 text-sm text-muted-foreground">Aún no desglosas por qué se devuelven los pedidos de este producto.</p>
+        ) : (
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left text-xs text-muted-foreground">
+                <th className="px-4 py-2 font-medium">Tanda</th>
+                <th className="px-2 py-2 font-medium">Motivo</th>
+                <th className="px-2 py-2 text-right font-medium">Cantidad</th>
+                <th className="px-4 py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {returnReasons.map((r) => (
+                <tr key={r.id} className="border-t border-border">
+                  <td className="whitespace-nowrap px-4 py-2 text-muted-foreground">{batchLabel(r.batch_id)}</td>
+                  <td className="px-2 py-2">{RETURN_REASON_LABEL[r.reason]}</td>
+                  <td className="px-2 py-2 text-right">{r.count}</td>
+                  <td className="px-4 py-2 text-right">
+                    <form action={deleteReturnReason}>
+                      <input type="hidden" name="id" value={r.id} />
+                      <input type="hidden" name="product_id" value={product.id} />
+                      <button className="text-xs text-danger hover:underline">Eliminar</button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {orderBatches.length === 0 ? (
+          <p className="px-4 pb-4 pt-2 text-xs text-muted-foreground">Registra primero una tanda de pedidos para poder desglosar sus devoluciones.</p>
+        ) : (
+          <form action={addReturnReason} className="grid gap-3 border-t border-border p-4 sm:grid-cols-4">
+            <input type="hidden" name="product_id" value={product.id} />
+            <div>
+              <label className="label" htmlFor="batch_id">Tanda</label>
+              <select id="batch_id" name="batch_id" className="input" required defaultValue="">
+                <option value="" disabled>
+                  Elige una tanda
+                </option>
+                {orderBatches.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {dateEs(b.period_start)} – {dateEs(b.period_end)} ({b.orders_returned} devueltos)
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="reason">Motivo</label>
+              <select id="reason" name="reason" className="input" defaultValue={RETURN_REASONS[0]}>
+                {RETURN_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {RETURN_REASON_LABEL[r]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="count">Cantidad</label>
+              <input id="count" name="count" type="number" min={1} defaultValue={1} className="input" required />
+            </div>
+            <div className="flex items-end">
+              <button className="btn w-full">Agregar</button>
+            </div>
+          </form>
+        )}
+        {topReason && <p className="px-4 pb-4 text-xs text-muted-foreground">{RETURN_REASON_HINT[topReason]}</p>}
       </section>
 
       {!product.archived && (
