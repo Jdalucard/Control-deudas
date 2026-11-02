@@ -21,7 +21,13 @@ type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 async function dropiPost(path: string, token: string, body: Record<string, unknown>, doFetch: FetchLike): Promise<unknown> {
   const res = await doFetch(DROPI_API_BASE + path, {
     method: "POST",
-    headers: { "Content-Type": "application/json;charset=UTF-8", "dropi-integration-key": token },
+    // La documentación oficial de Dropi usa ambos nombres en distintas secciones ("dropi-integration-key"
+    // en la introducción, "dropi-integracion-key" en Productos): se envían los dos por si acaso.
+    headers: {
+      "Content-Type": "application/json;charset=UTF-8",
+      "dropi-integration-key": token,
+      "dropi-integracion-key": token,
+    },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(8000),
   });
