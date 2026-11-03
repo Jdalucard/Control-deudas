@@ -55,30 +55,40 @@ async function scrapeMeta(browser, keyword) {
   const context = await newStealthContext(browser);
   const page = await context.newPage();
   const found = [];
-  let anyGraphqlSeen = 0;
+  const seenQueries = [];
 
   page.on("response", async (res) => {
     if (!res.url().includes("/api/graphql/")) return;
-    anyGraphqlSeen++;
+    const friendlyName = res.request().postData()?.match(/fb_api_req_friendly_name=([^&]+)/)?.[1] ?? "?";
     try {
       const json = await res.json();
+      const before = found.length;
       collectMetaAdCandidates(json, found);
+      seenQueries.push(`${decodeURIComponent(friendlyName)}(+${found.length - before})`);
     } catch {
-      // Respuesta no-JSON o no relacionada: se ignora, no es la que buscamos.
+      seenQueries.push(`${decodeURIComponent(friendlyName)}(no-json)`);
     }
   });
 
   try {
     const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&q=${encodeURIComponent(keyword)}&search_type=keyword_unordered`;
     await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
-    await page.waitForTimeout(6000); // deja tiempo a que termine el challenge JS + la carga de resultados.
+    await page.waitForTimeout(4000); // deja tiempo a que termine el challenge JS + la primera carga.
+    // Simula scroll real: la paginación de resultados suele disparar su propia llamada al acercarse al final.
+    for (let i = 0; i < 3; i++) {
+      await page.mouse.wheel(0, 2500);
+      await page.waitForTimeout(1500);
+    }
   } catch (err) {
     log(`   goto falló: ${err?.message ?? err}`);
   } finally {
     // Diagnóstico: si esto sigue en 0, el log dice exactamente qué vio la página (bloqueo, checkpoint, etc.).
     const title = await page.title().catch((e) => `(error leyendo título: ${e.message})`);
     const finalUrl = page.url();
-    log(`   diag: titulo="${title}" url_final="${finalUrl}" respuestas_graphql=${anyGraphqlSeen} candidatos=${found.length}`);
+    const htmlHasPageName = (await page.content().catch(() => "")).includes('"page_name"');
+    log(
+      `   diag: titulo="${title}" url_final="${finalUrl}" queries=[${seenQueries.join(", ")}] candidatos=${found.length} html_tiene_page_name=${htmlHasPageName}`,
+    );
   }
 
   await context.close();
