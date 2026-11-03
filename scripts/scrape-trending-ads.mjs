@@ -82,12 +82,17 @@ async function scrapeMeta(browser, keyword) {
   } catch (err) {
     log(`   goto falló: ${err?.message ?? err}`);
   } finally {
+    // Meta manda la primera página de resultados incrustada en el HTML (no por una llamada de red
+    // separada) — las queries de paginación que sí capturamos son solo para la página 2 en adelante.
+    const html = await page.content().catch(() => "");
+    const beforeHtml = found.length;
+    for (const blob of extractInlineJsonBlobs(html)) collectMetaAdCandidates(blob, found);
+
     // Diagnóstico: si esto sigue en 0, el log dice exactamente qué vio la página (bloqueo, checkpoint, etc.).
     const title = await page.title().catch((e) => `(error leyendo título: ${e.message})`);
     const finalUrl = page.url();
-    const htmlHasPageName = (await page.content().catch(() => "")).includes('"page_name"');
     log(
-      `   diag: titulo="${title}" url_final="${finalUrl}" queries=[${seenQueries.join(", ")}] candidatos=${found.length} html_tiene_page_name=${htmlHasPageName}`,
+      `   diag: titulo="${title}" url_final="${finalUrl}" queries=[${seenQueries.join(", ")}] candidatos_html=${found.length - beforeHtml} candidatos_total=${found.length}`,
     );
   }
 
@@ -104,6 +109,29 @@ async function scrapeMeta(browser, keyword) {
     link_url: ad.link_url ?? ad.cta_text ?? null,
     metrics: null,
   }));
+}
+
+/**
+ * Meta (igual que otros sitios de Facebook) incrusta el estado inicial de la página en bloques
+ * <script type="application/json">, a veces con el prefijo clásico "for (;;);" (anti JSON-hijacking).
+ * Devuelve solo los que parecen contener datos de anuncios (filtra por "page_name" antes de parsear,
+ * para no gastar tiempo en los decenas de bloques irrelevantes que trae cualquier página de Meta).
+ */
+function extractInlineJsonBlobs(html) {
+  const blobs = [];
+  const scriptRe = /<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/g;
+  let match;
+  while ((match = scriptRe.exec(html)) !== null) {
+    const raw = match[1];
+    if (!raw.includes('"page_name"')) continue;
+    const cleaned = raw.replace(/^for \(;;\);/, "").trim();
+    try {
+      blobs.push(JSON.parse(cleaned));
+    } catch {
+      // Bloque no es JSON válido (o viene truncado): se ignora.
+    }
+  }
+  return blobs;
 }
 
 /** Busca recursivamente objetos que parezcan un anuncio real (tienen page_name + algún campo de creativo). */
