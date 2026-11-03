@@ -94,6 +94,11 @@ async function scrapeMeta(browser, keyword) {
     log(
       `   diag: titulo="${title}" url_final="${finalUrl}" queries=[${seenQueries.join(", ")}] candidatos_html=${found.length - beforeHtml} candidatos_total=${found.length}`,
     );
+    // Si seguimos en 0, no sigas adivinando nombres de campo: imprime la forma real de los datos.
+    if (found.length === 0) {
+      const idx = html.indexOf('"page_name"');
+      if (idx >= 0) log(`   muestra_real: ${html.slice(Math.max(0, idx - 300), idx + 600)}`);
+    }
   }
 
   await context.close();
