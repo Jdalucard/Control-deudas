@@ -103,17 +103,25 @@ async function scrapeMeta(browser, keyword) {
 
   await context.close();
 
-  return found.slice(0, 20).map((ad) => ({
-    platform: "meta",
-    keyword,
-    advertiser: ad.page_name ?? null,
-    ad_text: ad.ad_creative_bodies?.[0] ?? ad.body ?? ad.snapshot?.body?.text ?? null,
-    media_type: ad.video_hd_url || ad.video_sd_url ? "video" : ad.images?.length ? "image" : null,
-    media_url: ad.video_hd_url ?? ad.video_sd_url ?? ad.images?.[0]?.original_image_url ?? ad.images?.[0]?.url ?? null,
-    thumbnail_url: ad.video_preview_image_url ?? ad.images?.[0]?.resized_image_url ?? null,
-    link_url: ad.link_url ?? ad.cta_text ?? null,
-    metrics: null,
-  }));
+  return found.slice(0, 20).map((ad) => {
+    // Estructura real confirmada con datos en vivo (2026-11-03): el anuncio trae page_name, body,
+    // cta_text, cards (carrusel) y page_profile_uri todos DENTRO de "snapshot", no al nivel del ad.
+    const s = ad.snapshot ?? {};
+    const firstCard = Array.isArray(s.cards) && s.cards.length > 0 ? s.cards[0] : null;
+    const videoUrl = s.video_hd_url ?? s.video_sd_url ?? firstCard?.video_hd_url ?? firstCard?.video_sd_url ?? null;
+    const imageUrl = s.images?.[0]?.original_image_url ?? s.images?.[0]?.url ?? firstCard?.original_image_url ?? firstCard?.resized_image_url ?? null;
+    return {
+      platform: "meta",
+      keyword,
+      advertiser: s.page_name ?? null,
+      ad_text: s.body?.text ?? firstCard?.body ?? null,
+      media_type: videoUrl ? "video" : imageUrl ? "image" : null,
+      media_url: videoUrl ?? imageUrl ?? null,
+      thumbnail_url: s.video_preview_image_url ?? firstCard?.resized_image_url ?? s.page_profile_picture_url ?? null,
+      link_url: s.page_profile_uri ?? null,
+      metrics: null,
+    };
+  });
 }
 
 /**
@@ -139,15 +147,14 @@ function extractInlineJsonBlobs(html) {
   return blobs;
 }
 
-/** Busca recursivamente objetos que parezcan un anuncio real (tienen page_name + algún campo de creativo). */
+/** Busca recursivamente objetos que parezcan un anuncio real: traen snapshot.page_name (confirmado con datos reales). */
 function collectMetaAdCandidates(node, found, depth = 0) {
   if (!node || typeof node !== "object" || depth > 12) return;
   if (Array.isArray(node)) {
     for (const item of node) collectMetaAdCandidates(item, found, depth + 1);
     return;
   }
-  const hasCreative = node.ad_creative_bodies || node.video_hd_url || node.images || node.snapshot;
-  if (typeof node.page_name === "string" && hasCreative) {
+  if (node.snapshot && typeof node.snapshot.page_name === "string") {
     found.push(node);
     return; // no hace falta seguir bajando dentro de un anuncio ya identificado.
   }
