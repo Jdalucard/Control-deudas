@@ -1,0 +1,31 @@
+name: Scrape trending ads
+
+on:
+  schedule:
+    - cron: "0 12 * * *" # todos los días a las 7am hora Colombia (UTC-5)
+  workflow_dispatch: {} # para poder correrlo a mano desde la pestaña Actions
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar pnpm
+        run: corepack enable
+
+      - name: Instalar dependencias
+        run: pnpm install --frozen-lockfile
+
+      - name: Instalar Chromium (Playwright)
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Scrapear anuncios en tendencia
+        run: pnpm run scrape:ads
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}

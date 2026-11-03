@@ -259,3 +259,27 @@ export const getDropshipSettings = cache(async (): Promise<DropshipSettings> => 
   const { data } = await supabase.from("dropship_settings").select("dropi_api_key, serpapi_key, settlement_days").maybeSingle();
   return data ? { ...data, settlement_days: Number(data.settlement_days) } : { dropi_api_key: null, serpapi_key: null, settlement_days: 7 };
 });
+
+export type TrendingAd = {
+  id: string;
+  platform: "meta" | "tiktok";
+  keyword: string;
+  advertiser: string | null;
+  ad_text: string | null;
+  media_type: "image" | "video" | null;
+  media_url: string | null;
+  thumbnail_url: string | null;
+  link_url: string | null;
+  scraped_at: string;
+};
+
+/** Pre-scrapeados aparte (GitHub Actions), no en vivo — ver scripts/scrape-trending-ads.mjs. */
+export const getTrendingAds = cache(async (): Promise<TrendingAd[]> => {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("dropship_trending_ads")
+    .select("id, platform, keyword, advertiser, ad_text, media_type, media_url, thumbnail_url, link_url, scraped_at")
+    .order("scraped_at", { ascending: false })
+    .limit(100);
+  return (data ?? []) as TrendingAd[];
+});
