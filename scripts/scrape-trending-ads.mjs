@@ -24,13 +24,35 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 // rastrear (ideas de partida, igual que los hashtags ya sugeridos en research-links.tsx).
 const META_KEYWORDS = ["productos ganadores", "organizador cocina", "masajeador", "cepillo quitapelos"];
 
+const REAL_USER_AGENT =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+/**
+ * Un Chromium headless "de fábrica" se detecta fácil (navigator.webdriver, viewport por defecto, etc.).
+ * Esto no garantiza evadir la detección de Meta/TikTok, pero es el mínimo razonable antes de intentarlo.
+ */
+async function newStealthContext(browser) {
+  const context = await browser.newContext({
+    userAgent: REAL_USER_AGENT,
+    viewport: { width: 1366, height: 900 },
+    locale: "es-CO",
+    timezoneId: "America/Bogota",
+  });
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, "webdriver", { get: () => undefined });
+  });
+  return context;
+}
+
 async function scrapeMeta(browser, keyword) {
-  const context = await browser.newContext();
+  const context = await newStealthContext(browser);
   const page = await context.newPage();
   const found = [];
+  let anyGraphqlSeen = 0;
 
   page.on("response", async (res) => {
     if (!res.url().includes("/api/graphql/")) return;
+    anyGraphqlSeen++;
     try {
       const json = await res.json();
       collectMetaAdCandidates(json, found);
@@ -40,8 +62,14 @@ async function scrapeMeta(browser, keyword) {
   });
 
   const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&q=${encodeURIComponent(keyword)}&search_type=keyword_unordered`;
-  await page.goto(url, { waitUntil: "networkidle", timeout: 30000 }).catch(() => {});
-  await page.waitForTimeout(3000); // deja tiempo a que termine el challenge JS + la carga de resultados.
+  await page.goto(url, { waitUntil: "load", timeout: 30000 }).catch((err) => console.log(`  (goto falló: ${err.message})`));
+  await page.waitForTimeout(6000); // deja tiempo a que termine el challenge JS + la carga de resultados.
+
+  // Diagnóstico: si esto sigue en 0, el log dice exactamente qué vio la página (bloqueo, checkpoint, etc.).
+  const title = await page.title().catch(() => "?");
+  const finalUrl = page.url();
+  console.log(`  diag: título="${title}" · url_final="${finalUrl}" · respuestas_graphql=${anyGraphqlSeen} · candidatos=${found.length}`);
+
   await context.close();
 
   return found.slice(0, 20).map((ad) => ({
@@ -73,12 +101,14 @@ function collectMetaAdCandidates(node, found, depth = 0) {
 }
 
 async function scrapeTikTokTrending(browser) {
-  const context = await browser.newContext();
+  const context = await newStealthContext(browser);
   const page = await context.newPage();
   const found = [];
+  let anyApiSeen = 0;
 
   page.on("response", async (res) => {
     if (!res.url().includes("/creative_radar_api/v1/top_ads/")) return;
+    anyApiSeen++;
     try {
       const json = await res.json();
       const list = json?.data?.materials ?? json?.data?.list ?? [];
@@ -90,11 +120,16 @@ async function scrapeTikTokTrending(browser) {
 
   await page
     .goto("https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en?period=30&country_code=CO", {
-      waitUntil: "networkidle",
+      waitUntil: "load",
       timeout: 30000,
     })
-    .catch(() => {});
-  await page.waitForTimeout(3000);
+    .catch((err) => console.log(`  (goto falló: ${err.message})`));
+  await page.waitForTimeout(6000);
+
+  const title = await page.title().catch(() => "?");
+  const finalUrl = page.url();
+  console.log(`  diag: título="${title}" · url_final="${finalUrl}" · respuestas_api=${anyApiSeen} · candidatos=${found.length}`);
+
   await context.close();
 
   // No hay búsqueda por palabra clave confirmada en este endpoint (solo filtros de industria/país/periodo):
@@ -113,7 +148,7 @@ async function scrapeTikTokTrending(browser) {
 }
 
 async function main() {
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: ["--disable-blink-features=AutomationControlled"] });
   const results = [];
 
   for (const keyword of META_KEYWORDS) {
