@@ -84,9 +84,13 @@ async function scrapeMeta(browser, keyword) {
   } finally {
     // Meta manda la primera página de resultados incrustada en el HTML (no por una llamada de red
     // separada) — las queries de paginación que sí capturamos son solo para la página 2 en adelante.
+    // Extraer el <script> exacto que las trae es frágil (su formato/tipo no está confirmado); en vez de
+    // eso se busca directo en el HTML cada "snapshot":{...} y se cuenta llaves hasta su cierre real.
     const html = await page.content().catch(() => "");
     const beforeHtml = found.length;
-    for (const blob of extractInlineJsonBlobs(html)) collectMetaAdCandidates(blob, found);
+    for (const snapshot of extractBalancedJsonAfter(html, '"snapshot":')) {
+      if (typeof snapshot.page_name === "string") found.push({ snapshot });
+    }
 
     // Diagnóstico: si esto sigue en 0, el log dice exactamente qué vio la página (bloqueo, checkpoint, etc.).
     const title = await page.title().catch((e) => `(error leyendo título: ${e.message})`);
@@ -125,26 +129,53 @@ async function scrapeMeta(browser, keyword) {
 }
 
 /**
- * Meta (igual que otros sitios de Facebook) incrusta el estado inicial de la página en bloques
- * <script type="application/json">, a veces con el prefijo clásico "for (;;);" (anti JSON-hijacking).
- * Devuelve solo los que parecen contener datos de anuncios (filtra por "page_name" antes de parsear,
- * para no gastar tiempo en los decenas de bloques irrelevantes que trae cualquier página de Meta).
+ * Meta incrusta la primera página de resultados directo en el HTML (confirmado con datos reales,
+ * 2026-11-03), pero en qué <script> exacto y con qué envoltorio no está confirmado — intentar adivinar
+ * la etiqueta es frágil. Esto busca cada aparición literal de `marker` en el HTML y, desde la primera
+ * "{" después de ella, cuenta llaves (respetando strings/escapes) hasta encontrar su cierre real, sin
+ * depender de ninguna etiqueta envolvente.
  */
-function extractInlineJsonBlobs(html) {
-  const blobs = [];
-  const scriptRe = /<script[^>]*type="application\/json"[^>]*>([\s\S]*?)<\/script>/g;
-  let match;
-  while ((match = scriptRe.exec(html)) !== null) {
-    const raw = match[1];
-    if (!raw.includes('"page_name"')) continue;
-    const cleaned = raw.replace(/^for \(;;\);/, "").trim();
-    try {
-      blobs.push(JSON.parse(cleaned));
-    } catch {
-      // Bloque no es JSON válido (o viene truncado): se ignora.
+function extractBalancedJsonAfter(html, marker) {
+  const objects = [];
+  let searchFrom = 0;
+  while (true) {
+    const markerIdx = html.indexOf(marker, searchFrom);
+    if (markerIdx === -1) break;
+    const start = html.indexOf("{", markerIdx);
+    if (start === -1) break;
+
+    let depth = 0;
+    let inString = false;
+    let escaped = false;
+    let end = -1;
+    for (let i = start; i < html.length; i++) {
+      const ch = html[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (ch === "\\") escaped = true;
+        else if (ch === '"') inString = false;
+      } else if (ch === '"') {
+        inString = true;
+      } else if (ch === "{") {
+        depth++;
+      } else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
     }
+
+    if (end === -1) break; // no se cerró (HTML truncado): no seguir buscando.
+    try {
+      objects.push(JSON.parse(html.slice(start, end + 1)));
+    } catch {
+      // No era JSON válido (coincidencia falsa del marcador): se ignora.
+    }
+    searchFrom = end + 1;
   }
-  return blobs;
+  return objects;
 }
 
 /** Busca recursivamente objetos que parezcan un anuncio real: traen snapshot.page_name (confirmado con datos reales). */
