@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getDeletedDropshipProducts, getDropshipProducts, getDropshipSettings, getProductTotals, requireUser } from "@/lib/data";
+import { getDeletedDropshipProducts, getDropshipProducts, getDropshipSettings, getProductTotals, getTrendingAds, requireUser } from "@/lib/data";
 import { fmtCop } from "@/lib/finance";
 import { dateEs } from "@/lib/format";
 import { decide, fmtPct0to1, isApproved, marginDelivered, scoreTotal } from "@/lib/dropship";
@@ -12,6 +12,7 @@ import { DiscoverCandidates } from "./discover-candidates";
 import { ProductsTabs } from "./products-tabs";
 import { RadarTable } from "./radar-table";
 import { ResearchLinks } from "./research-links";
+import { TrendingAds } from "./trending-ads";
 
 const STATUS_LABEL: Record<string, string> = {
   evaluando: "Evaluando",
@@ -26,11 +27,12 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function DropshipProductsPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
   await requireUser();
   const { m } = await searchParams;
-  const [products, totals, deletedProducts, dropshipSettings] = await Promise.all([
+  const [products, totals, deletedProducts, dropshipSettings, trendingAds] = await Promise.all([
     getDropshipProducts(),
     getProductTotals(),
     getDeletedDropshipProducts(),
     getDropshipSettings(),
+    getTrendingAds(),
   ]);
   const totalsByProduct = new Map(totals.map((t) => [t.product_id, t]));
 
@@ -182,7 +184,12 @@ export default async function DropshipProductsPage({ searchParams }: { searchPar
           </>
         }
         radar={<RadarTable />}
-        discover={<DiscoverCandidates hasDropiKey={!!dropshipSettings.dropi_api_key} hasSerpApiKey={!!dropshipSettings.serpapi_key} />}
+        discover={
+          <>
+            <TrendingAds ads={trendingAds} />
+            <DiscoverCandidates hasDropiKey={!!dropshipSettings.dropi_api_key} hasSerpApiKey={!!dropshipSettings.serpapi_key} />
+          </>
+        }
       />
     </>
   );

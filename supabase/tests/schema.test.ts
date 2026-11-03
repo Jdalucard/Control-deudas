@@ -58,6 +58,7 @@ describe("esquema de deudas", () => {
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0010_dropship_return_reasons.sql"), "utf8"));
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0011_dropship_settings.sql"), "utf8"));
     await db.exec(readFileSync(path.join(__dirname, "../migrations/0012_money_movement_purpose.sql"), "utf8"));
+    await db.exec(readFileSync(path.join(__dirname, "../migrations/0013_dropship_trending_ads.sql"), "utf8"));
   });
 
   it("A crea un hogar y B no lo ve", async () => {
@@ -291,5 +292,33 @@ describe("esquema de deudas", () => {
     expect(await as(B, () => rows("select * from public.dropship_settings"))).toHaveLength(0);
     const blocked = await as(B, () => rows("update public.dropship_settings set dropi_api_key='hackeada' where user_id=$1 returning user_id", [A]));
     expect(blocked).toHaveLength(0);
+  });
+});
+
+describe("esquema de anuncios en tendencia (catálogo compartido, solo lectura)", () => {
+  it("cualquier usuario autenticado puede leer, pero nadie (ni anon) puede escribir sin service_role", async () => {
+    // Simula el seed que en producción hace el job con la service_role key (esta base de pruebas no modela
+    // ese rol): se da el permiso temporalmente, se siembra el dato, y se vuelve a quitar antes de probar
+    // que "authenticated" por sí solo no puede escribir.
+    await db.exec("grant insert on public.dropship_trending_ads to authenticated");
+    await db.exec("create policy temp_seed on public.dropship_trending_ads for insert to authenticated with check (true)");
+    await as(A, () =>
+      rows(
+        "insert into public.dropship_trending_ads (platform, keyword, advertiser, ad_text) values ('meta','masajeador','Marca X','Copy de prueba')",
+      ),
+    );
+    await db.exec("drop policy temp_seed on public.dropship_trending_ads");
+    await db.exec("revoke insert on public.dropship_trending_ads from authenticated");
+
+    const seen = await as(A, () => rows("select platform, keyword, advertiser from public.dropship_trending_ads"));
+    expect(seen).toHaveLength(1);
+    expect(seen[0].advertiser).toBe("Marca X");
+
+    // anon no tiene ni siquiera permiso de SELECT: Postgres rechaza con "permission denied", no con 0 filas.
+    await expect(as(null, () => rows("select * from public.dropship_trending_ads"))).rejects.toThrow();
+    await expect(
+      as(A, () => rows("insert into public.dropship_trending_ads (platform, keyword) values ('tiktok','otro') returning id")),
+    ).rejects.toThrow();
+    await expect(as(A, () => rows("delete from public.dropship_trending_ads returning id"))).rejects.toThrow();
   });
 });
