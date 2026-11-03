@@ -44,7 +44,14 @@ async function newStealthContext(browser) {
   return context;
 }
 
+function log(line) {
+  // console.log puede perderse si el proceso termina antes de que el stream haga flush;
+  // escribir directo a stdout con salto de línea explícito es más a prueba de balas en CI.
+  process.stdout.write(line + "\n");
+}
+
 async function scrapeMeta(browser, keyword) {
+  log(`-> Meta "${keyword}": arrancando...`);
   const context = await newStealthContext(browser);
   const page = await context.newPage();
   const found = [];
@@ -61,14 +68,18 @@ async function scrapeMeta(browser, keyword) {
     }
   });
 
-  const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&q=${encodeURIComponent(keyword)}&search_type=keyword_unordered`;
-  await page.goto(url, { waitUntil: "load", timeout: 30000 }).catch((err) => console.log(`  (goto falló: ${err.message})`));
-  await page.waitForTimeout(6000); // deja tiempo a que termine el challenge JS + la carga de resultados.
-
-  // Diagnóstico: si esto sigue en 0, el log dice exactamente qué vio la página (bloqueo, checkpoint, etc.).
-  const title = await page.title().catch(() => "?");
-  const finalUrl = page.url();
-  console.log(`  diag: título="${title}" · url_final="${finalUrl}" · respuestas_graphql=${anyGraphqlSeen} · candidatos=${found.length}`);
+  try {
+    const url = `https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=ALL&is_targeted_country=false&media_type=all&q=${encodeURIComponent(keyword)}&search_type=keyword_unordered`;
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
+    await page.waitForTimeout(6000); // deja tiempo a que termine el challenge JS + la carga de resultados.
+  } catch (err) {
+    log(`   goto falló: ${err?.message ?? err}`);
+  } finally {
+    // Diagnóstico: si esto sigue en 0, el log dice exactamente qué vio la página (bloqueo, checkpoint, etc.).
+    const title = await page.title().catch((e) => `(error leyendo título: ${e.message})`);
+    const finalUrl = page.url();
+    log(`   diag: titulo="${title}" url_final="${finalUrl}" respuestas_graphql=${anyGraphqlSeen} candidatos=${found.length}`);
+  }
 
   await context.close();
 
@@ -101,6 +112,7 @@ function collectMetaAdCandidates(node, found, depth = 0) {
 }
 
 async function scrapeTikTokTrending(browser) {
+  log("-> TikTok tendencia: arrancando...");
   const context = await newStealthContext(browser);
   const page = await context.newPage();
   const found = [];
@@ -118,17 +130,19 @@ async function scrapeTikTokTrending(browser) {
     }
   });
 
-  await page
-    .goto("https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en?period=30&country_code=CO", {
-      waitUntil: "load",
+  try {
+    await page.goto("https://ads.tiktok.com/business/creativecenter/inspiration/topads/pc/en?period=30&country_code=CO", {
+      waitUntil: "domcontentloaded",
       timeout: 30000,
-    })
-    .catch((err) => console.log(`  (goto falló: ${err.message})`));
-  await page.waitForTimeout(6000);
-
-  const title = await page.title().catch(() => "?");
-  const finalUrl = page.url();
-  console.log(`  diag: título="${title}" · url_final="${finalUrl}" · respuestas_api=${anyApiSeen} · candidatos=${found.length}`);
+    });
+    await page.waitForTimeout(6000);
+  } catch (err) {
+    log(`   goto falló: ${err?.message ?? err}`);
+  } finally {
+    const title = await page.title().catch((e) => `(error leyendo título: ${e.message})`);
+    const finalUrl = page.url();
+    log(`   diag: titulo="${title}" url_final="${finalUrl}" respuestas_api=${anyApiSeen} candidatos=${found.length}`);
+  }
 
   await context.close();
 
@@ -148,25 +162,30 @@ async function scrapeTikTokTrending(browser) {
 }
 
 async function main() {
+  log(`Node ${process.version} · arrancando Chromium...`);
   const browser = await chromium.launch({ args: ["--disable-blink-features=AutomationControlled"] });
   const results = [];
 
   for (const keyword of META_KEYWORDS) {
+    const t0 = Date.now();
     try {
       const ads = await scrapeMeta(browser, keyword);
-      console.log(`Meta · "${keyword}": ${ads.length} anuncio(s) encontrados.`);
+      log(`Meta "${keyword}": ${ads.length} anuncio(s) encontrados (${Date.now() - t0}ms).`);
       results.push(...ads);
     } catch (err) {
-      console.error(`Meta · "${keyword}" falló:`, err);
+      log(`Meta "${keyword}" falló (${Date.now() - t0}ms): ${err?.stack ?? err}`);
     }
   }
 
-  try {
-    const ads = await scrapeTikTokTrending(browser);
-    console.log(`TikTok · tendencia: ${ads.length} anuncio(s) encontrados.`);
-    results.push(...ads);
-  } catch (err) {
-    console.error("TikTok falló:", err);
+  {
+    const t0 = Date.now();
+    try {
+      const ads = await scrapeTikTokTrending(browser);
+      log(`TikTok tendencia: ${ads.length} anuncio(s) encontrados (${Date.now() - t0}ms).`);
+      results.push(...ads);
+    } catch (err) {
+      log(`TikTok falló (${Date.now() - t0}ms): ${err?.stack ?? err}`);
+    }
   }
 
   await browser.close();
@@ -186,7 +205,7 @@ async function main() {
     }
   }
 
-  console.log(`Listo: ${results.length} anuncio(s) guardados en total.`);
+  log(`Listo: ${results.length} anuncio(s) guardados en total.`);
 }
 
 main().catch((err) => {
